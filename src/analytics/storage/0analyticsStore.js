@@ -35,6 +35,7 @@ analytics.AnalyticsStore = (function(){
      * @instance
      * @memberof Flybits.analytics.AnalyticsStore
      * @function addEvent 
+     * @param {Flybits.analytics.Event} event Event object to be logged.
      * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
      */
     /**
