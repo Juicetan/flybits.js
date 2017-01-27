@@ -25,12 +25,13 @@ var paths = {
   apiWrappers: './src/APIs/**/*.js',
   utilities: './src/utils/*.js',
   context: './src/context/**/*.js',
+  analytics: './src/analytics/**/*.js',
   main: './src/main.js',
   distro: './dist',
   tmp: './.tmp',
   docs: './docs'
 };
-var codePaths = [paths.startCode, paths.main, paths.deferredModel, paths.utilities, paths.interfaces, paths.models, paths.store, paths.context, paths.apiWrappers, paths.exportCode, paths.endCode];
+var codePaths = [paths.startCode, paths.main, paths.deferredModel, paths.utilities, paths.interfaces, paths.models, paths.store, paths.context, paths.analytics, paths.apiWrappers, paths.exportCode, paths.endCode];
 
 var pluginName = "flybits.js";
 var pluginMinifiedName = "flybits.min.js";

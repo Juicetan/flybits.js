@@ -61,18 +61,32 @@ var Flybits = {
  */
 var context = {};
 
+/**
+ * Reporting manager to facilitate the reporting of application events.
+ * @namespace
+ * @memberof Flybits
+ */
+var analytics = {};
+
 //defaults
 Flybits.cfg = {
   HOST: 'http://tenant.flybits.com/v2',
   CTXHOST: 'https://gateway.flybits.com/ctxdata',
   APIKEY: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
   CTXREPORTDELAY: 60000,
+  analytics: {
+    REPORTDELAY: 3600000,
+    REPORTDELAYUNIT: 'milliseconds',
+    MAXSTORESIZE: 100
+  },
   store: {
     SDKPROPS: 'flb.sdk.properties',
     RESOURCEPATH: "./res/",
     DEVICEID: 'flb_device',
     USERTOKEN: 'flb_usertoken',
-    USERTOKENEXP: 'flb_usertoken_expiry'
+    USERTOKENEXP: 'flb_usertoken_expiry',
+    ANALYTICSLASTREPORTED: 'flb_analytics_lastreported',
+    ANALYTICSLASTREPORTATTEMPTED: 'flb_analytics_lastreportattempted',
   },
   res: {
     TAGS: '/Tags',
@@ -168,6 +182,11 @@ var setDeviceID = function(){
 var setStaticDefaults = function(){
   if(Flybits.context){
     Flybits.context.Manager.reportDelay = Flybits.cfg.CTXREPORTDELAY;
+  }
+  if(Flybits.analytics){
+    Flybits.analytics.Manager.reportDelay = Flybits.cfg.analytics.REPORTDELAY;
+    Flybits.analytics.Manager.reportDelayUnit = Flybits.cfg.analytics.REPORTDELAYUNIT;
+    Flybits.analytics.Manager.maxStoreSize = Flybits.cfg.analytics.MAXSTORESIZE;
   }
 };
 
