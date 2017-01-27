@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/analytics:502d021
+// @version feature/analytics:dc9656c
 ;(function(undefined) {
 
 /**
@@ -114,7 +114,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/analytics:502d021";
+Flybits.VERSION = "feature/analytics:dc9656c";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -569,6 +569,52 @@ Flybits.interface.ContextPlugin = {
    * @return {Object} Expected server format of context value.
    */
   _toServerFormat: function(contextValue){}
+};
+
+/**
+ * Interface for implementing data stores that operate on key/value pairs.
+ * @memberof Flybits.interface
+ * @interface
+ */
+Flybits.interface.KeyDataStore = {
+  /**
+   * Retrieves the amount of entries in the data store.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @return {external:Promise<Object,Flybits.Validation>} Promise that resolves with the number of entries in the data store.
+   */
+  getSize: function(){},
+  /**
+   * Adds/Replaces/Removes an item in the data store.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @param {string} id ID of item to be stored.
+   * @param {Object} item Item to be stored in data store.  If `null` or `undefined` is supplied the related item that has provided `id` will be removed from the data store.
+   * @return {external:Promise<Object,Flybits.Validation>} Promise that resolves without value if data is successfully set in data store.
+   */
+  set: function(id,item){},
+  /**
+   * Retrieves an item from the data store.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @param {string} id ID of item to be retrieved.
+   * @return {external:Promise<Object,Flybits.Validation>} Promise that resolves with data store item based on `id` if it exists.
+   */
+  get: function(id){},
+  /**
+   * Retrieves all item keys from the data store.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @return {external:Promise<Object,Flybits.Validation>} Promise that resolves with all item keys in the data store.
+   */
+  getKeys: function(){},
+  /**
+   * Clears the entire data store of its entries.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value if data clear is successful.
+   */
+  clear: function(){}
 };
 
 /**
@@ -2979,6 +3025,75 @@ analytics.Manager = (function(){
   return analyticsManager;
 
 })();
+/**
+ * @classdesc Abstract base class from which all Analytics stores are extended.
+ * @memberof Flybits.analytics
+ * @abstract
+ * @class AnalyticsStore
+ * @param {Object} opts Configuration object to override default configuration
+ * @param {number} opts.maxStoreSize {@link Flybits.analytics.AnalyticsStore#maxStoreSize}
+ */
+analytics.AnalyticsStore = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+
+  var AnalyticsStore = function(opts){
+    if(this.constructor.name === 'Object'){
+      throw new Error('Abstract classes cannot be instantiated');
+    }
+
+    /**
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @member {number} [maxStoreSize=100] Maximum amount of analytics events to store locally before old events are flushed from the local store.
+     */
+    this.maxStoreSize = opts && opts.maxStoreSize?opts.maxStoreSize:100;
+  };
+  AnalyticsStore.prototype = {
+    implements: function(interfaceName){
+      if(!this._interfaces){
+        this._interfaces = [];
+      }
+      this._interfaces.push(interfaceName);
+    },
+    /**
+     * Add an analytics event to the local persistent storage.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function addEvent 
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+    /**
+     * Removes analytics events from local persistent store based on their IDs.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function clearEvents
+     * @param {string[]} eventIDs Generated temporary IDs of analytics events stored locally.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */ 
+    /**
+     * Removes all analytics events from local persistent store.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function clearAllEvents
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */ 
+    /**
+     * Retrieves all analytics events from local persistent storage that is currently available.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function getEvents
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves with all analytics events currently persisted and rejects with a common Flybits Validation model instance.
+     */ 
+  };
+
+  return AnalyticsStore;
+})();
+
 /**
  * This is a utility class, do not use constructor.
  * @class Tag
