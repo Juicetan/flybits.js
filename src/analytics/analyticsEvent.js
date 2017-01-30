@@ -63,7 +63,7 @@ analytics.Event = (function(){
      * @memberof Flybits.analytics.Event
      * @member {string} type Event type.
      */
-    this.type = serverObj.type;
+    this.type = serverObj.type || this.types.DISCRETE;
     /**
      * @instance
      * @memberof Flybits.analytics.Event
@@ -75,13 +75,13 @@ analytics.Event = (function(){
      * @memberof Flybits.analytics.Event
      * @member {Date} loggedAt Date object instantiated at time of logging.
      */
-    this.loggedAt = serverObj.loggedAt?new Date(serverObj.loggedAt):null;
+    this.loggedAt = serverObj.loggedAt?new Date(serverObj.loggedAt):new Date();
     /**
      * @instance
      * @memberof Flybits.analytics.Event
      * @member {Object} properties Custom event properties.
      */
-    this.properties = serverObj.properties;
+    this.properties = serverObj.properties || {};
   };
 
   Event.prototype.toJSON = function(){
