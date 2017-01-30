@@ -47,7 +47,7 @@ analytics.BrowserStore = (function(){
     }
   };
 
-  BrowserStore.prototype = Object.create(analytics.BrowserStore.prototype);
+  BrowserStore.prototype = Object.create(analytics.AnalyticsStore.prototype);
   BrowserStore.prototype.constructor = BrowserStore;
 
   /**
