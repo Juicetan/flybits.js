@@ -24,6 +24,7 @@ analytics.Manager = (function(){
     return Promise.settle([lastReportedPromise,lastReportAttemptedPromise]);
   };
 
+
   var analyticsManager = {
     /**
      * @memberof Flybits.analytics.Manager
@@ -51,11 +52,31 @@ analytics.Manager = (function(){
      */
     lastReportAttempted: null,
     _reportTimeout: null,
+    _analyticsStore: null,
+    _uploadChannel: null,
     /**
      * @memberof Flybits.analytics.Manager
      * @member {boolean} isReporting Flag indicating whether scheduled analytics reporting is enabled.
      */
     isReporting: false,
+    initialize: function(){
+      var def = new Deferred();
+      var manager = this;
+
+      this._analyticsStore = new analytics.BrowserStore({
+        maxStoreSize: Flybits.cfg.analytics.MAXSTORESIZE
+      });
+      
+      restoreTimestamps().then(function(){
+        return manager.startReporting();
+      }).then(function(){
+        def.resolve();
+      }).catch(function(e){
+        def.reject(e);
+      });
+
+      return def.promise;
+    },
     /**
      * Stops the scheduled service that continuously batch reports collected analytics data if there exists any.
      * @memberof Flybits.analytics.Manager
@@ -78,9 +99,7 @@ analytics.Manager = (function(){
       var manager = this;
       manager.stopReporting();
       
-      restoreTimestamps().then(function(){
-        return Session.resolveSession();
-      }).then(function(user){
+      Session.resolveSession().then(function(user){
         var interval;
         interval = function(){
           manager.report().catch(function(e){}).then(function(){
