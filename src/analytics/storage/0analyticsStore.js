@@ -44,7 +44,7 @@ analytics.AnalyticsStore = (function(){
      * @instance
      * @memberof Flybits.analytics.AnalyticsStore
      * @function clearEvents
-     * @param {string[]} eventIDs Generated temporary IDs of analytics events stored locally.
+     * @param {string[]} tmpIDs Generated temporary IDs of analytics events stored locally.
      * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
      */ 
     /**
