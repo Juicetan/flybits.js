@@ -8,6 +8,7 @@ analytics.Manager = (function(){
   var Deferred = Flybits.Deferred;
   var Validation = Flybits.Validation;
   var Session = Flybits.store.Session;
+  var Event = analytics.Event;
 
   var restoreTimestamps = function(){
     var lastReportedPromise = Flybits.store.Property.get(Flybits.cfg.store.ANALYTICSLASTREPORTED).then(function(epoch){
@@ -54,11 +55,18 @@ analytics.Manager = (function(){
     _reportTimeout: null,
     _analyticsStore: null,
     _uploadChannel: null,
+    _timedEventCache: {},
     /**
      * @memberof Flybits.analytics.Manager
      * @member {boolean} isReporting Flag indicating whether scheduled analytics reporting is enabled.
      */
     isReporting: false,
+    /**
+     * Restores Manager state properties, initializes default local storage and upload channel, and starts automated batch reporting of stored analytics.
+     * @memberof Flybits.analytics.Manager
+     * @function initialize
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
     initialize: function(){
       var def = new Deferred();
       var manager = this;
@@ -129,6 +137,82 @@ analytics.Manager = (function(){
     report: function(){
       var def = new Deferred();
       def.resolve();
+      return def.promise;
+    },
+    /**
+     * Log a discrete analytics event.
+     * @memberof Flybits.analytics.Manager
+     * @function logEvent
+     * @param {string} eventName Name of event.
+     * @param {Object} properties Map of custom properties.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+    logEvent: function(eventName, properties){
+      var evt = new Event({
+        name: eventName,
+        type: Event.types.DISCRETE
+      });
+      evt.properties = properties;
+
+      return this._analyticsStore.addEvent(evt);
+    },
+    /**
+     * Log the start of timed analytics event.
+     * @memberof Flybits.analytics.Manager
+     * @function startTimedEvent
+     * @param {string} eventName Name of event.
+     * @param {Object} properties Map of custom properties.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves with a reference ID of the timed start event for use when ending the timed event. The promise will reject with a common Flybits Validation model instance should any error occur.
+     */
+    startTimedEvent: function(eventName, properties){
+      var manager = this;
+      var def = new Deferred();
+      var evt = new Event({
+        name: eventName,
+        type: Event.types.TIMEDSTART
+      });
+      evt.properties = properties || {};
+      evt.setProperty('_timedRef',evt.tmpID);
+
+      this._analyticsStore.addEvent(evt).then(function(){
+        manager._timedEventCache[evt.tmpID] = evt;
+        def.resolve(evt.tmpID);
+      }).catch(function(e){
+        def.reject(e);
+      });
+
+      return def.promise;
+    },
+    /**
+     * Log the end of timed analytics event.
+     * @memberof Flybits.analytics.Manager
+     * @function endTimedEvent
+     * @param {string} refID Reference ID of timed start event.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+    endTimedEvent: function(refID){
+      var manager = this;
+      var def = new Deferred();
+      var startedEvt = manager._timedEventCache[refID];
+      if(!refID || !startedEvt){
+        def.reject(new Validation().addError('No Timed Event Found','No corresponding start event was found for provided reference.',{
+          code: Validation.type.NOTFOUND
+        }));
+        return def.promise;
+      }
+
+      var endEvt = new Event({
+        name: startedEvt.name,
+        type: Event.types.TIMEDEND,
+        properties: startedEvt.properties
+      });
+      this._analyticsStore.addEvent(endEvt).then(function(){
+        delete manager._timedEventCache[refID];
+        def.resolve();
+      }).catch(function(e){
+        def.reject(e);
+      });
+
       return def.promise;
     }
   };
