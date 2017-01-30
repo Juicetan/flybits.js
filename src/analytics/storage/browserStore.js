@@ -144,11 +144,11 @@ analytics.BrowserStore = (function(){
     return def.promise;
   };
 
-  BrowserStore._saveState = function(event){
-    return this._store.setItem(event.tmpID,event.JSON());
+  BrowserStore.prototype._saveState = function(event){
+    return this._store.setItem(event.tmpID,event.toJSON());
   };
 
-  BrowserStore._validateStoreState = function(){
+  BrowserStore.prototype._validateStoreState = function(){
     var bStore = this;
     var def = new Deferred();
     var promises = [];
