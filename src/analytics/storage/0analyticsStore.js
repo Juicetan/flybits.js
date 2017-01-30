@@ -60,8 +60,17 @@ analytics.AnalyticsStore = (function(){
      * @abstract
      * @instance
      * @memberof Flybits.analytics.AnalyticsStore
-     * @function getEvents
+     * @function getAllEvents
      * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves with all analytics events currently persisted and rejects with a common Flybits Validation model instance.
+     */ 
+    /**
+     * Retrieves an analytics event from local persistent storage that is currently available.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function getEvent
+     * @param {string} tmpID Temporary ID of analytics event that is used as a key for local storage.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves with an analytics event currently persisted and rejects with a common Flybits Validation model instance.
      */ 
   };
 
