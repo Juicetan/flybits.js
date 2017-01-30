@@ -87,6 +87,63 @@ analytics.BrowserStore = (function(){
     return def.promise;
   };
 
+  BrowserStore.prototype.getEvent = function(tmpID){
+    var def = new Deferred();
+    this._store.getItem(tmpID).then(function(res){
+      if(res){
+        var rehydratedEvt = new Event(res);
+        rehydratedEvt.tmpID = tmpID;
+        def.resolve(rehydratedEvt);
+      } else{
+        def.resolve();
+      }
+    }).catch(function(e){
+      def.reject(e);
+    });
+
+    return def.promise;
+  };
+
+  BrowserStore.prototype.clearEvents = function(tmpIDs){
+    var store = this._store;
+    var def = new Deferred();
+    var deleteData;
+    deleteData = function(){
+      if(tmpIDs.length <= 0){
+        def.resolve();
+        return;
+      }
+      var curKey = tmpIDs.pop();
+      store.removeItem(curKey).catch(function(){}).then(function(){
+        deleteData();
+      });
+    };
+    deleteData();
+
+    return def.promise;
+  };
+
+  BrowserStore.prototype.clearAllEvents = function(){
+    return this._store.clear();
+  };
+
+  BrowserStore.prototype.getAllEvents = function(){
+    var def = new Deferred();
+    var data = [];
+    var store = this._store;
+    store.iterate(function(val, key, iterationNum){
+      var rehydratedEvt = new Event(val);
+      rehydratedEvt.tmpID = key;
+      data.push(rehydratedEvt);
+    }).then(function(){
+      def.resolve(data);
+    }).catch(function(e){
+      def.reject(e);
+    });
+
+    return def.promise;
+  };
+
   BrowserStore._saveState = function(event){
     return this._store.setItem(event.tmpID,event.JSON());
   };

@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/analytics:d45d5a7
+// @version feature/analytics:22f4c71
 ;(function(undefined) {
 
 /**
@@ -114,7 +114,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/analytics:d45d5a7";
+Flybits.VERSION = "feature/analytics:22f4c71";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -3172,7 +3172,7 @@ analytics.AnalyticsStore = (function(){
      * @instance
      * @memberof Flybits.analytics.AnalyticsStore
      * @function clearEvents
-     * @param {string[]} eventIDs Generated temporary IDs of analytics events stored locally.
+     * @param {string[]} tmpIDs Generated temporary IDs of analytics events stored locally.
      * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
      */ 
     /**
@@ -3254,7 +3254,7 @@ analytics.BrowserStore = (function(){
     }
   };
 
-  BrowserStore.prototype = Object.create(analytics.BrowserStore.prototype);
+  BrowserStore.prototype = Object.create(analytics.AnalyticsStore.prototype);
   BrowserStore.prototype.constructor = BrowserStore;
 
   /**
@@ -3287,6 +3287,63 @@ analytics.BrowserStore = (function(){
       } else{
         def.resolve();
       }
+    }).catch(function(e){
+      def.reject(e);
+    });
+
+    return def.promise;
+  };
+
+  BrowserStore.prototype.getEvent = function(tmpID){
+    var def = new Deferred();
+    this._store.getItem(tmpID).then(function(res){
+      if(res){
+        var rehydratedEvt = new Event(res);
+        rehydratedEvt.tmpID = tmpID;
+        def.resolve(rehydratedEvt);
+      } else{
+        def.resolve();
+      }
+    }).catch(function(e){
+      def.reject(e);
+    });
+
+    return def.promise;
+  };
+
+  BrowserStore.prototype.clearEvents = function(tmpIDs){
+    var store = this._store;
+    var def = new Deferred();
+    var deleteData;
+    deleteData = function(){
+      if(tmpIDs.length <= 0){
+        def.resolve();
+        return;
+      }
+      var curKey = tmpIDs.pop();
+      store.removeItem(curKey).catch(function(){}).then(function(){
+        deleteData();
+      });
+    };
+    deleteData();
+
+    return def.promise;
+  };
+
+  BrowserStore.prototype.clearAllEvents = function(){
+    return this._store.clear();
+  };
+
+  BrowserStore.prototype.getAllEvents = function(){
+    var def = new Deferred();
+    var data = [];
+    var store = this._store;
+    store.iterate(function(val, key, iterationNum){
+      var rehydratedEvt = new Event(val);
+      rehydratedEvt.tmpID = key;
+      data.push(rehydratedEvt);
+    }).then(function(){
+      def.resolve(data);
     }).catch(function(e){
       def.reject(e);
     });
