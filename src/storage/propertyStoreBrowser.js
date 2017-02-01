@@ -41,7 +41,7 @@ Flybits.store.Property.browser = (function(){
           if(!removePromise){
             def.resolve(store);
           } else{
-            storage.then(function(){
+            removePromise.then(function(){
               def.resolve(store);
             }).catch(function(e){
               def.reject(e);
