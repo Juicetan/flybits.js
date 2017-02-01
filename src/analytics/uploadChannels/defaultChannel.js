@@ -101,5 +101,5 @@ analytics.DefaultChannel = (function(){
     });
   };
 
-  return BrowserStore;
+  return DefaultChannel;
 })();
