@@ -224,7 +224,8 @@ analytics.Manager = (function(){
       var startedEvt = manager._timedEventCache[refID];
       if(!refID || !startedEvt){
         def.reject(new Validation().addError('No Timed Event Found','No corresponding start event was found for provided reference.',{
-          code: Validation.type.NOTFOUND
+          code: Validation.type.NOTFOUND,
+          context: refID
         }));
         return def.promise;
       }
