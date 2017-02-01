@@ -156,7 +156,9 @@ analytics.Manager = (function(){
       }).then(function(){
         def.resolve();
       }).catch(function(e){
-        console.error('> analytics report error',e);
+        if(e instanceof Validation && e.firstError().code !== Validation.type.NOTFOUND){
+          console.error('> analytics report error',e);
+        }
         def.reject(e);
       }).then(function(){
         manager.lastReportAttempted = Date.now();
