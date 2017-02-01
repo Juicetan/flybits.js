@@ -13,7 +13,7 @@ analytics.Manager = (function(){
   var restoreTimestamps = function(){
     var lastReportedPromise = Flybits.store.Property.get(Flybits.cfg.store.ANALYTICSLASTREPORTED).then(function(epoch){
       if(epoch){
-        mananalyticsManagerager.lastReported = +epoch;
+        analyticsManager.lastReported = +epoch;
       }
     });
     var lastReportAttemptedPromise = Flybits.store.Property.get(Flybits.cfg.store.ANALYTICSLASTREPORTATTEMPTED).then(function(epoch){
@@ -74,6 +74,7 @@ analytics.Manager = (function(){
       this._analyticsStore = new analytics.BrowserStore({
         maxStoreSize: Flybits.cfg.analytics.MAXSTORESIZE
       });
+      this._uploadChannel = new analytics.DefaultChannel();
       
       restoreTimestamps().then(function(){
         return manager.startReporting();
@@ -136,7 +137,27 @@ analytics.Manager = (function(){
      */
     report: function(){
       var def = new Deferred();
-      def.resolve();
+      var manager = this;
+      var eventTmpIDs;
+      this._analyticsStore.getAllEvents().then(function(events){
+        eventTmpIDs = events.map(function(evt){
+          return evt.tmpID;
+        });
+        return manager._uploadChannel.uploadEvents(events);
+      }).then(function(){
+        return manager._analyticsStore.clearEvents(eventTmpIDs);
+      }).then(function(){
+        manager.lastReported = Date.now();
+        Flybits.store.Property.set(Flybits.cfg.store.ANALYTICSLASTREPORTED,manager.lastReported);
+        def.resolve();
+      }).catch(function(e){
+        console.error('> analytics report error',e);
+        def.reject(e);
+      }).then(function(){
+        manager.lastReportAttempted = Date.now();
+        Flybits.store.Property.set(Flybits.cfg.store.ANALYTICSLASTREPORTATTEMPTED,manager.lastReportAttempted);
+      });
+      
       return def.promise;
     },
     /**
