@@ -25,6 +25,17 @@ analytics.Manager = (function(){
     return Promise.settle([lastReportedPromise,lastReportAttemptedPromise]);
   };
 
+  var timeUnitMultiplier = {
+    milliseconds: 1,
+    seconds: 1000,
+    minutes: 60*1000,
+    hours: 60*60*1000,
+    days: 24*60*60*1000
+  };
+  var resolveMilliseconds = function(value,units){
+    var multiplier = timeUnitMultiplier[units] || 1;
+    return value * multiplier;
+  };
 
   var analyticsManager = {
     /**
@@ -39,7 +50,7 @@ analytics.Manager = (function(){
     reportDelay: 3600000,
     /**
      * @memberof Flybits.analytics.Manager
-     * @member {string} reportDelayUnit=milliseconds Unit of measure to be used for {@link Flybits.analytics.Manager.reportDelay}.  Possible values include: `milliseconds`, `seconds`, `hours`, `days`.
+     * @member {string} reportDelayUnit=milliseconds Unit of measure to be used for {@link Flybits.analytics.Manager.reportDelay}.  Possible values include: `milliseconds`, `seconds`, `minutes`,`hours`, `days`.
      */
     reportDelayUnit: 'milliseconds',
     /**
@@ -115,7 +126,7 @@ analytics.Manager = (function(){
             if(manager.isReporting){
               manager._reportTimeout = setTimeout(function(){
                 interval();
-              },manager.reportDelay);
+              },resolveMilliseconds(manager.reportDelay,manager.reportDelayUnit));
             }
           });
 
