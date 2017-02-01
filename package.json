@@ -1,6 +1,6 @@
 {
   "name": "flybits",
-  "version": "1.1.2-beta",
+  "version": "1.1.3-beta",
   "description": "JavaScript SDK that can be used to build Flybits enabled applications on both the client and server side.",
   "main": "./dist/flybits.js",
   "dependencies": {

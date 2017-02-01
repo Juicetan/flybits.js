@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/analytics:7a16225
+// @version feature/analytics:dd03023
 ;(function(undefined) {
 
 /**
@@ -114,7 +114,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/analytics:7a16225";
+Flybits.VERSION = "feature/analytics:dd03023";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -3152,15 +3152,22 @@ analytics.Manager = (function(){
         eventTmpIDs = events.map(function(evt){
           return evt.tmpID;
         });
+        if(eventTmpIDs.length < 1){
+          throw new Validation().addError('No analytics to upload.','',{
+            code: Validation.type.NOTFOUND
+          });
+        }
         return manager._uploadChannel.uploadEvents(events);
-      }).then(function(){
-        return manager._analyticsStore.clearEvents(eventTmpIDs);
       }).then(function(){
         manager.lastReported = Date.now();
         Flybits.store.Property.set(Flybits.cfg.store.ANALYTICSLASTREPORTED,manager.lastReported);
+        return manager._analyticsStore.clearEvents(eventTmpIDs);
+      }).then(function(){
         def.resolve();
       }).catch(function(e){
-        console.error('> analytics report error',e);
+        if(e instanceof Validation && e.firstError().code !== Validation.type.NOTFOUND){
+          console.error('> analytics report error',e);
+        }
         def.reject(e);
       }).then(function(){
         manager.lastReportAttempted = Date.now();
@@ -3226,7 +3233,8 @@ analytics.Manager = (function(){
       var startedEvt = manager._timedEventCache[refID];
       if(!refID || !startedEvt){
         def.reject(new Validation().addError('No Timed Event Found','No corresponding start event was found for provided reference.',{
-          code: Validation.type.NOTFOUND
+          code: Validation.type.NOTFOUND,
+          context: refID
         }));
         return def.promise;
       }
@@ -3566,9 +3574,9 @@ analytics.DefaultChannel = (function(){
     analytics.UploadChannel.call(this,opts);
 
     this.sessionKey = null;
-    this.HOST = Flybits.cfg.analytics.channelHost;
-    this.channelKey = Flybits.cfg.analytics.channelKey;
-    this.appID = Flybits.cfg.analytics.appID;
+    this.HOST = Flybits.cfg.analytics.CHANNELHOST;
+    this.channelKey = Flybits.cfg.analytics.CHANNELKEY;
+    this.appID = Flybits.cfg.analytics.APPID;
   };
 
   DefaultChannel.prototype = Object.create(analytics.UploadChannel.prototype);
@@ -3622,7 +3630,8 @@ analytics.DefaultChannel = (function(){
       credentials: 'include',
       headers: {
         key: this.sessionKey,
-        appid: this.appID
+        appid: this.appID,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
@@ -3652,7 +3661,7 @@ analytics.DefaultChannel = (function(){
     });
   };
 
-  return BrowserStore;
+  return DefaultChannel;
 })();
 
 /**
