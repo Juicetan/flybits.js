@@ -15,9 +15,9 @@ analytics.DefaultChannel = (function(){
     analytics.UploadChannel.call(this,opts);
 
     this.sessionKey = null;
-    this.HOST = Flybits.cfg.analytics.channelHost;
-    this.channelKey = Flybits.cfg.analytics.channelKey;
-    this.appID = Flybits.cfg.analytics.appID;
+    this.HOST = Flybits.cfg.analytics.CHANNELHOST;
+    this.channelKey = Flybits.cfg.analytics.CHANNELKEY;
+    this.appID = Flybits.cfg.analytics.APPID;
   };
 
   DefaultChannel.prototype = Object.create(analytics.UploadChannel.prototype);
@@ -71,7 +71,8 @@ analytics.DefaultChannel = (function(){
       credentials: 'include',
       headers: {
         key: this.sessionKey,
-        appid: this.appID
+        appid: this.appID,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
