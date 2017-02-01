@@ -143,12 +143,17 @@ analytics.Manager = (function(){
         eventTmpIDs = events.map(function(evt){
           return evt.tmpID;
         });
+        if(eventTmpIDs.length < 1){
+          throw new Validation().addError('No analytics to upload.','',{
+            code: Validation.type.NOTFOUND
+          });
+        }
         return manager._uploadChannel.uploadEvents(events);
-      }).then(function(){
-        return manager._analyticsStore.clearEvents(eventTmpIDs);
       }).then(function(){
         manager.lastReported = Date.now();
         Flybits.store.Property.set(Flybits.cfg.store.ANALYTICSLASTREPORTED,manager.lastReported);
+        return manager._analyticsStore.clearEvents(eventTmpIDs);
+      }).then(function(){
         def.resolve();
       }).catch(function(e){
         console.error('> analytics report error',e);
