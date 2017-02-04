@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/analytics:665824c
+// @version feature/analytics:68fc352
 ;(function(undefined) {
 
 /**
@@ -114,7 +114,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/analytics:665824c";
+Flybits.VERSION = "feature/analytics:68fc352";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -3270,6 +3270,149 @@ analytics.Manager = (function(){
 
 })();
 /**
+ * @classdesc Abstract base class from which all Analytics upload channels are extended.
+ * @memberof Flybits.analytics
+ * @abstract
+ * @class UploadChannel
+ * @param {Object} opts Configuration object to override default configuration
+ */
+analytics.UploadChannel = (function(){
+  var Session = Flybits.store.Session;
+
+  var UploadChannel = function(opts){
+    if(this.constructor.name === 'Object'){
+      throw new Error('Abstract classes cannot be instantiated');
+    }
+  };
+  UploadChannel.prototype = {
+    implements: function(interfaceName){
+      if(!this._interfaces){
+        this._interfaces = [];
+      }
+      this._interfaces.push(interfaceName);
+    },
+    /**
+     * Uploads a list of Events to respective destinations.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.UploadChannel
+     * @function uploadEvents 
+     * @param {Flybits.analytics.Event[]} events Event objects to be uploaded.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+  };
+
+  return UploadChannel;
+})();
+
+/**
+ * @class DefaultChannel
+ * @classdesc Default analytics upload channel.
+ * @extends Flybits.analytics.UploadChannel
+ * @memberof Flybits.analytics
+ */
+analytics.DefaultChannel = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+  var ApiUtil = Flybits.util.Api;
+  var Session = Flybits.store.Session;
+  var Event = analytics.Event;
+
+  var DefaultChannel = function(opts){
+    analytics.UploadChannel.call(this,opts);
+
+    this.sessionKey = null;
+    this.HOST = Flybits.cfg.analytics.CHANNELHOST;
+    this.channelKey = Flybits.cfg.analytics.CHANNELKEY;
+    this.appID = Flybits.cfg.analytics.APPID;
+  };
+
+  DefaultChannel.prototype = Object.create(analytics.UploadChannel.prototype);
+  DefaultChannel.prototype.constructor = DefaultChannel;
+
+  DefaultChannel.prototype.initSession = function(){
+    var def = new Deferred();
+    var channel = this;
+    var url = this.HOST + '/session?key=' + this.channelKey;
+    fetch(url,{
+      method: 'GET',
+      credentials: 'include'
+    }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
+      try {
+        var resp = ApiUtil.parseResponse(resultStr);
+        channel.sessionKey = resp.key;
+        def.resolve();
+      } catch (e) {
+        def.reject(new Validation().addError("Registration Failed", "Unexpected server response.", {
+          code: Validation.type.MALFORMED
+        }));
+      }
+    }).catch(function(resp){
+      ApiUtil.getResultStr(resp).then(function(resultStr){
+        var parsedResp = ApiUtil.parseErrorMsg(resultStr);
+        def.reject(new Validation().addError('Context report failed.',parsedResp,{
+          serverCode: resp.status
+        }));
+      });
+    });
+
+    return def.promise;
+  };
+
+  DefaultChannel.prototype._preparePayload = function(events){
+    return {
+      deviceID: Session.deviceID,
+      data: events.map(function(obj){
+        var rawObj = obj.toJSON();
+        rawObj.properties['_uid'] = Session.user.id;
+        return rawObj;
+      })
+    };
+  };
+
+  DefaultChannel.prototype._upload = function(payload){
+    var def = new Deferred();
+    var url = this.HOST + '/events';
+    fetch(url,{
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        key: this.sessionKey,
+        appid: this.appID,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
+      def.resolve();
+    }).catch(function(resp){
+      ApiUtil.getResultStr(resp).then(function(resultStr){
+        var parsedResp = ApiUtil.parseErrorMsg(resultStr);
+        def.reject(new Validation().addError('Analytics report failed.',parsedResp,{
+          serverCode: resp.status
+        }));
+      });
+    });
+
+    return def.promise;
+  };
+
+  DefaultChannel.prototype.uploadEvents = function(events){
+    var channel = this;
+    var payload = this._preparePayload(events);
+    var sessionPromise = Promise.resolve();
+    if(!this.sessionKey){
+      sessionPromise = this.initSession();
+    }
+
+    return sessionPromise.then(function(){
+      return channel._upload(payload);
+    });
+  };
+
+  return DefaultChannel;
+})();
+
+/**
  * @classdesc Abstract base class from which all Analytics stores are extended.
  * @memberof Flybits.analytics
  * @abstract
@@ -3530,149 +3673,6 @@ analytics.BrowserStore = (function(){
 
 
   return BrowserStore;
-})();
-
-/**
- * @classdesc Abstract base class from which all Analytics upload channels are extended.
- * @memberof Flybits.analytics
- * @abstract
- * @class UploadChannel
- * @param {Object} opts Configuration object to override default configuration
- */
-analytics.UploadChannel = (function(){
-  var Session = Flybits.store.Session;
-
-  var UploadChannel = function(opts){
-    if(this.constructor.name === 'Object'){
-      throw new Error('Abstract classes cannot be instantiated');
-    }
-  };
-  UploadChannel.prototype = {
-    implements: function(interfaceName){
-      if(!this._interfaces){
-        this._interfaces = [];
-      }
-      this._interfaces.push(interfaceName);
-    },
-    /**
-     * Uploads a list of Events to respective destinations.
-     * @abstract
-     * @instance
-     * @memberof Flybits.analytics.UploadChannel
-     * @function uploadEvents 
-     * @param {Flybits.analytics.Event[]} events Event objects to be uploaded.
-     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
-     */
-  };
-
-  return UploadChannel;
-})();
-
-/**
- * @class DefaultChannel
- * @classdesc Default analytics upload channel.
- * @extends Flybits.analytics.UploadChannel
- * @memberof Flybits.analytics
- */
-analytics.DefaultChannel = (function(){
-  var Deferred = Flybits.Deferred;
-  var Validation = Flybits.Validation;
-  var ApiUtil = Flybits.util.Api;
-  var Session = Flybits.store.Session;
-  var Event = analytics.Event;
-
-  var DefaultChannel = function(opts){
-    analytics.UploadChannel.call(this,opts);
-
-    this.sessionKey = null;
-    this.HOST = Flybits.cfg.analytics.CHANNELHOST;
-    this.channelKey = Flybits.cfg.analytics.CHANNELKEY;
-    this.appID = Flybits.cfg.analytics.APPID;
-  };
-
-  DefaultChannel.prototype = Object.create(analytics.UploadChannel.prototype);
-  DefaultChannel.prototype.constructor = DefaultChannel;
-
-  DefaultChannel.prototype.initSession = function(){
-    var def = new Deferred();
-    var channel = this;
-    var url = this.HOST + 'session?key=' + this.channelKey;
-    fetch(url,{
-      method: 'GET',
-      credentials: 'include'
-    }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
-      try {
-        var resp = ApiUtil.parseResponse(resultStr);
-        channel.sessionKey = resp.key;
-        def.resolve();
-      } catch (e) {
-        def.reject(new Validation().addError("Registration Failed", "Unexpected server response.", {
-          code: Validation.type.MALFORMED
-        }));
-      }
-    }).catch(function(resp){
-      ApiUtil.getResultStr(resp).then(function(resultStr){
-        var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-        def.reject(new Validation().addError('Context report failed.',parsedResp,{
-          serverCode: resp.status
-        }));
-      });
-    });
-
-    return def.promise;
-  };
-
-  DefaultChannel.prototype._preparePayload = function(events){
-    return {
-      deviceID: Session.deviceID,
-      data: events.map(function(obj){
-        var rawObj = obj.toJSON();
-        rawObj.properties['_uid'] = Session.user.id;
-        return rawObj;
-      })
-    };
-  };
-
-  DefaultChannel.prototype._upload = function(payload){
-    var def = new Deferred();
-    var url = this.HOST + 'events';
-    fetch(url,{
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        key: this.sessionKey,
-        appid: this.appID,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
-      def.resolve();
-    }).catch(function(resp){
-      ApiUtil.getResultStr(resp).then(function(resultStr){
-        var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-        def.reject(new Validation().addError('Analytics report failed.',parsedResp,{
-          serverCode: resp.status
-        }));
-      });
-    });
-
-    return def.promise;
-  };
-
-  DefaultChannel.prototype.uploadEvents = function(events){
-    var channel = this;
-    var payload = this._preparePayload(events);
-    var sessionPromise = Promise.resolve();
-    if(!this.sessionKey){
-      sessionPromise = this.initSession();
-    }
-
-    return sessionPromise.then(function(){
-      return channel._upload(payload);
-    });
-  };
-
-  return DefaultChannel;
 })();
 
 /**

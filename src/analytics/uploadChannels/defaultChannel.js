@@ -26,7 +26,7 @@ analytics.DefaultChannel = (function(){
   DefaultChannel.prototype.initSession = function(){
     var def = new Deferred();
     var channel = this;
-    var url = this.HOST + 'session?key=' + this.channelKey;
+    var url = this.HOST + '/session?key=' + this.channelKey;
     fetch(url,{
       method: 'GET',
       credentials: 'include'
@@ -65,7 +65,7 @@ analytics.DefaultChannel = (function(){
 
   DefaultChannel.prototype._upload = function(payload){
     var def = new Deferred();
-    var url = this.HOST + 'events';
+    var url = this.HOST + '/events';
     fetch(url,{
       method: 'POST',
       credentials: 'include',
