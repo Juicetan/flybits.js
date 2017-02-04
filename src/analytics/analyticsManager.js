@@ -119,7 +119,7 @@ analytics.Manager = (function(){
       var manager = this;
       manager.stopReporting();
       
-      Session.resolveSession().then(function(user){
+      Flybits.api.User.getSignedInUser().then(function(user){
         var interval;
         interval = function(){
           manager.report().catch(function(e){}).then(function(){

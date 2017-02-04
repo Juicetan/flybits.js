@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/analytics:e453f54
+// @version feature/analytics:665824c
 ;(function(undefined) {
 
 /**
@@ -114,7 +114,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/analytics:e453f54";
+Flybits.VERSION = "feature/analytics:665824c";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -3128,7 +3128,7 @@ analytics.Manager = (function(){
       var manager = this;
       manager.stopReporting();
       
-      Session.resolveSession().then(function(user){
+      Flybits.api.User.getSignedInUser().then(function(user){
         var interval;
         interval = function(){
           manager.report().catch(function(e){}).then(function(){
@@ -4474,7 +4474,9 @@ Flybits.api.User = (function(){
 
         if(resp && resp.data && resp.data.length > 0){
           try{
-            def.resolve(new User(resp.data[0]));
+            var signedInUser = new User(resp.data[0]);
+            Session.setSession(signedInUser);
+            def.resolve(signedInUser);
           } catch(e){
             def.reject(new Validation().addError("Request Failed","Failed to parse server model.",{
               code: Validation.type.MALFORMED,
