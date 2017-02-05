@@ -29,7 +29,6 @@ analytics.DefaultChannel = (function(){
     var url = this.HOST + '/session?key=' + this.channelKey;
     fetch(url,{
       method: 'GET',
-      credentials: 'include'
     }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
       try {
         var resp = ApiUtil.parseResponse(resultStr);
@@ -68,7 +67,6 @@ analytics.DefaultChannel = (function(){
     var url = this.HOST + '/events';
     fetch(url,{
       method: 'POST',
-      credentials: 'include',
       headers: {
         key: this.sessionKey,
         appid: this.appID,
