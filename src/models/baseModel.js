@@ -5,6 +5,7 @@
  */
 var BaseModel = (function(){
   var BaseModel = function(serverObj){
+    BaseObj.call(this);
     /**
      * @instance
      * @memberof BaseModel
@@ -16,16 +17,12 @@ var BaseModel = (function(){
       this.id = serverObj.id;
     }
   };
-  BaseModel.prototype = {
-    reqKeys: {
-      id: 'id'
-    },
-    implements: function(interfaceName){
-      if(!this._interfaces){
-        this._interfaces = [];
-      }
-      this._interfaces.push(interfaceName);
-    }
+
+  BaseModel.prototype = Object.create(BaseObj.prototype);
+  BaseModel.prototype.constructor = BaseModel;
+
+  BaseModel.prototype.reqKeys = {
+    id: 'id'
   };
 
   return BaseModel;
