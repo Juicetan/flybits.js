@@ -26,7 +26,6 @@ var ForageStore = (function(){
       });
     } else{
       def.reject();
-      return def.promise;
     }
 
     return def.promise;
