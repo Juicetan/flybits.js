@@ -12,7 +12,7 @@ var MemoryStore = (function(){
   MemoryStore.prototype.implements('PropertyStore');
 
   MemoryStore.prototype.isSupported = MemoryStore.isSupported = function(){
-    return Promise.resolve();
+    return true;
   };
 
   MemoryStore.prototype.getItem = function(key){

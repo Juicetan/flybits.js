@@ -14,21 +14,8 @@ var ForageStore = (function(){
   ForageStore.prototype.implements('PropertyStore');
 
   ForageStore.prototype.isSupported = ForageStore.isSupported = function(){
-    var def = new Deferred();
-    var importExists = window && window.localforage && window.localforage._driver;
-    if(importExists){
-      localforage.setItem('support',true).then(function(){
-        return localforage.removeItem('support');
-      }).then(function(){
-        def.resolve();
-      }).catch(function(e){
-        def.reject();
-      });
-    } else{
-      def.reject();
-    }
-
-    return def.promise;
+    var support = window && window.localforage && window.localforage._driver;
+    return support;
   };
 
   ForageStore.prototype.getItem = function(key){

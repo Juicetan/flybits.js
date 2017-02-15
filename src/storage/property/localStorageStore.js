@@ -12,20 +12,17 @@ var LocalStorageStore = (function(){
   LocalStorageStore.prototype.implements('PropertyStore');
 
   LocalStorageStore.prototype.isSupported = LocalStorageStore.isSupported = function(){
-    var def = new Deferred();
-    var importExists = window && window.localStorage;
-    if(importExists){
+    var support = window && window.localStorage;
+    if(support){
       try {
         localStorage.setItem('support', true);
         localStorage.removeItem('support');
-        def.resolve();
       } catch (e) {
-        def.reject();
+        support = false;
       }
-    } else{
-      def.reject();
     }
-    return def.promise;
+
+    return support;
   };
 
   LocalStorageStore.prototype.getItem = function(key){

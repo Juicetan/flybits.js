@@ -12,21 +12,17 @@ var CookieStore = (function(){
   CookieStore.prototype.implements('PropertyStore');
 
   CookieStore.prototype.isSupported = CookieStore.isSupported = function(){
-    var def = new Deferred();
-    var importExists = document && 'cookie' in document;
-    if(importExists){
+    var support = document && 'cookie' in document;
+    if(support){
       try{
         BrowserUtil.setCookie('support','true');
         BrowserUtil.setCookie('support','true',new Date(0));
-        def.resolve();
       } catch(e){
-        def.reject();
+        support = false;
       }
-    } else{
-      def.reject();
     }
 
-    return def.promise;
+    return support;
   };
 
   CookieStore.prototype.getItem = function(key){
