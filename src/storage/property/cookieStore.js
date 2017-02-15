@@ -30,13 +30,15 @@ var CookieStore = (function(){
   };
 
   CookieStore.prototype.getItem = function(key){
-    return BrowserUtil.getCookie(key);
+    return Promise.resolve(BrowserUtil.getCookie(key));
   };
   CookieStore.prototype.setItem = function(key, value){
-    return BrowserUtil.setCookie(key, value);
+    BrowserUtil.setCookie(key, value);
+    return Promise.resolve();
   };
   CookieStore.prototype.removeItem = function(key){
-    return BrowserUtil.setCookie(key, '', new Date(0));
+    BrowserUtil.setCookie(key, '', new Date(0));
+    return Promise.resolve();
   };
 
   return ForageStore;

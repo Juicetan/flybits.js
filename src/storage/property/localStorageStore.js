@@ -29,13 +29,15 @@ var LocalStorageStore = (function(){
   };
 
   LocalStorageStore.prototype.getItem = function(key){
-    return this.store.getItem(key);
+    return Promise.resolve(this.store.getItem(key));
   };
   LocalStorageStore.prototype.setItem = function(key, value){
-    return this.store.setItem(key, value);
+    this.store.setItem(key, value);
+    return Promise.resolve();
   };
   LocalStorageStore.prototype.removeItem = function(key){
-    return this.store.removeItem(key);
+    this.store.removeItem(key);
+    return Promise.resolve();
   };
 
   return ForageStore;
