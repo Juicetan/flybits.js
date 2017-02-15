@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/abstractedStorage:ea17a8e
+// @version feature/abstractedStorage:6197454
 ;(function(undefined) {
 
 /**
@@ -100,7 +100,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/abstractedStorage:ea17a8e";
+Flybits.VERSION = "feature/abstractedStorage:6197454";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -574,7 +574,7 @@ Flybits.interface.PropertyStore = {
    * Checks for availability of this property storage type.
    * @function
    * @memberof Flybits.interface.PropertyStore
-   * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value if this property store is supported on the current platform.
+   * @return {boolean} `true` or `false` depending on storage type support.
    */
   isSupported: function(){},
   /**
@@ -1807,172 +1807,6 @@ Flybits.ZoneMomentInstance = (function(){
   return ZoneMomentInstance;
 })();
 
-Flybits.store.Property.browser = (function(){
-  var Deferred = Flybits.Deferred;
-  var storage = null;
-
-  var Property = {
-    init: function(){
-      if(window.localforage && window.localforage._driver){
-        storage = window.localforage.createInstance({
-          name: Flybits.cfg.store.SDKPROPS
-        });
-      } else if(window.localStorage){
-        storage = window.localStorage;
-      }
-    },
-    localDump: {},
-    isLocalStoreSupported: function(){
-      var storageUsable = (window.localforage && window.localforage._driver) || window.localStorage;
-      if(storageUsable){
-        try{
-          localStorage.setItem('support',true);
-          localStorage.removeItem('support');
-          return true;
-        } catch(e){
-          return false;
-        }
-      } else{
-        return false;
-      }
-    },
-    remove: function(key){
-      var def = new Deferred();
-      var store = this;
-
-      if(!this.isLocalStoreSupported()){
-        console.error('> WARNING: `localStorage` not supported on this platform. Reverting to temporary in memory storage.');
-        delete this.localDump[key];
-        def.resolve(store);
-      } else{
-        try{
-          var removePromise = storage.removeItem(key);
-          if(!removePromise){
-            def.resolve(store);
-          } else{
-            removePromise.then(function(){
-              def.resolve(store);
-            }).catch(function(e){
-              def.reject(e);
-            });
-          }
-        } catch(e){
-          console.error(e);
-          def.reject(e);
-        }
-      }
-
-      return def.promise;
-    },
-    set: function(key,value){
-      var def = new Deferred();
-      var store = this;
-
-      if(!value){
-        return store.remove(key);
-      }
-
-      if(!this.isLocalStoreSupported()){
-        console.error('> WARNING: `localStorage` not supported on this platform. Reverting to temporary in memory storage.');
-        this.localDump[key] = value;
-        def.resolve(store);
-      } else{
-        try{
-          var setPromise = storage.setItem(key,value);
-          if(!setPromise){
-            def.resolve(store);
-          } else{
-            setPromise.then(function(){
-              def.resolve(store);
-            }).catch(function(e){
-              def.reject(e);
-            });
-          }
-        } catch(e){
-          console.error(e);
-          def.reject(e);
-        }
-      }
-      return def.promise;
-    },
-    get: function(key){
-      var def = new Deferred();
-      if(!this.isLocalStoreSupported()){
-        console.error('> WARNING: `localStorage` not supported on this platform. Reverting to temporary in memory storage.');
-        var val = this.localDump[key];
-        def.resolve(val);
-      } else{
-        var getPromise = storage.getItem(key);
-        if(!getPromise || !(getPromise instanceof Promise)){
-          def.resolve(getPromise);
-        } else{
-          getPromise.then(function(val){
-            def.resolve(val);
-          }).catch(function(e){
-            def.reject(e);
-          });
-        }
-      }
-      return def.promise;
-    }
-  };
-
-  return Property;
-})();
-
-Flybits.store.Property.server = (function(){
-  var Deferred = Flybits.Deferred;
-  var storage;
-
-  var Property = {
-    init: function(){
-      storage = Persistence.create({
-        dir: Flybits.cfg.store.RESOURCEPATH
-      });
-      storage.initSync();
-    },
-    remove: function(key){
-      var def = new Deferred();
-      var store = this;
-
-      storage.removeItem(key).then(function(){
-        def.resolve(store);
-      }).catch(function(e){
-        def.reject(e);
-      });
-
-      return def.promise;
-    },
-    set: function(key,value){
-      var def = new Deferred();
-      var store = this;
-      if(!value){
-        return this.remove(key);
-      } else{
-        storage.setItem(key,value).then(function(){
-          def.resolve(store);
-        }).catch(function(e){
-          def.reject(e)
-        });
-      }
-      return def.promise;
-    },
-    get: function(key){
-      var def = new Deferred();
-
-      storage.getItem(key).then(function(val){
-        def.resolve(val);
-      }).catch(function(e){
-        def.reject(e)
-      });
-
-      return def.promise;
-    }
-  };
-
-  return Property;
-})();
-
 /**
  * This is a utility class, do not use constructor.
  * @class
@@ -2088,31 +1922,29 @@ var CookieStore = (function(){
   CookieStore.prototype.implements('PropertyStore');
 
   CookieStore.prototype.isSupported = CookieStore.isSupported = function(){
-    var def = new Deferred();
-    var importExists = document && 'cookie' in document;
-    if(importExists){
+    var support = document && 'cookie' in document;
+    if(support){
       try{
         BrowserUtil.setCookie('support','true');
         BrowserUtil.setCookie('support','true',new Date(0));
-        def.resolve();
       } catch(e){
-        def.reject();
+        support = false;
       }
-    } else{
-      def.reject();
     }
 
-    return def.promise;
+    return support;
   };
 
   CookieStore.prototype.getItem = function(key){
-    return BrowserUtil.getCookie(key);
+    return Promise.resolve(BrowserUtil.getCookie(key));
   };
   CookieStore.prototype.setItem = function(key, value){
-    return BrowserUtil.setCookie(key, value);
+    BrowserUtil.setCookie(key, value);
+    return Promise.resolve();
   };
   CookieStore.prototype.removeItem = function(key){
-    return BrowserUtil.setCookie(key, '', new Date(0));
+    BrowserUtil.setCookie(key, '', new Date(0));
+    return Promise.resolve();
   };
 
   return ForageStore;
@@ -2134,21 +1966,8 @@ var ForageStore = (function(){
   ForageStore.prototype.implements('PropertyStore');
 
   ForageStore.prototype.isSupported = ForageStore.isSupported = function(){
-    var def = new Deferred();
-    var importExists = window && window.localforage && window.localforage._driver;
-    if(importExists){
-      localforage.setItem('support',true).then(function(){
-        return localforage.removeItem('support');
-      }).then(function(){
-        def.resolve();
-      }).catch(function(e){
-        def.reject();
-      });
-    } else{
-      def.reject();
-    }
-
-    return def.promise;
+    var support = window && window.localforage && window.localforage._driver;
+    return support;
   };
 
   ForageStore.prototype.getItem = function(key){
@@ -2178,35 +1997,153 @@ var LocalStorageStore = (function(){
   LocalStorageStore.prototype.implements('PropertyStore');
 
   LocalStorageStore.prototype.isSupported = LocalStorageStore.isSupported = function(){
-    var def = new Deferred();
-    var importExists = window && window.localStorage;
-    if(importExists){
+    var support = window && window.localStorage;
+    if(support){
       try {
         localStorage.setItem('support', true);
         localStorage.removeItem('support');
-        def.resolve();
       } catch (e) {
-        def.reject();
+        support = false;
       }
-    } else{
-      def.reject();
     }
-    return def.promise;
+
+    return support;
   };
 
   LocalStorageStore.prototype.getItem = function(key){
-    return this.store.getItem(key);
+    return Promise.resolve(this.store.getItem(key));
   };
   LocalStorageStore.prototype.setItem = function(key, value){
-    return this.store.setItem(key, value);
+    this.store.setItem(key, value);
+    return Promise.resolve();
   };
   LocalStorageStore.prototype.removeItem = function(key){
-    return this.store.removeItem(key);
+    this.store.removeItem(key);
+    return Promise.resolve();
   };
 
   return ForageStore;
 
 })();
+var MemoryStore = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+
+  var MemoryStore = function(){
+    BaseObj.call(this);
+    this.store = {};
+  };
+
+  MemoryStore.prototype = Object.create(BaseObj.prototype);
+  MemoryStore.prototype.constructor = MemoryStore;
+  MemoryStore.prototype.implements('PropertyStore');
+
+  MemoryStore.prototype.isSupported = MemoryStore.isSupported = function(){
+    return true;
+  };
+
+  MemoryStore.prototype.getItem = function(key){
+    return Promise.resolve(this.store[key]);
+  };
+  MemoryStore.prototype.setItem = function(key, value){
+    this.store[key] = value;
+    return Promise.resolve();
+  };
+  MemoryStore.prototype.removeItem = function(key){
+    delete this.store[key];
+    return Promise.resolve();
+  };
+
+  return ForageStore;
+
+})();
+Flybits.store.Property.browser = (function(){
+  var Deferred = Flybits.Deferred;
+
+  var availableStorage = [ForageStore,LocalStorageStore,CookieStore,MemoryStore];
+  var getStorageEngine = function(){
+    for(var i = 0; i < availableStorage.length; i++){
+      var CurEngine = availableStorage[i];
+      if(CurEngine.isSupported()){
+        return new CurEngine(Flybits.cfg.store.SDKPROPS);
+      }
+    }
+  };
+
+  var Property = {
+    init: function(){
+      this.storageEngine = getStorageEngine();
+    },
+    remove: function(key){
+      return this.storageEngine.removeItem(key);
+    },
+    set: function(key, value){
+      if(!value){
+        return this.remove(key);
+      }
+      return this.storageEngine.setItem(key, value);
+    },
+    get: function(key){
+      return this.storageEngine.getItem(key);
+    }
+  };
+
+  return Property;
+})();
+
+Flybits.store.Property.server = (function(){
+  var Deferred = Flybits.Deferred;
+  var storage;
+
+  var Property = {
+    init: function(){
+      storage = Persistence.create({
+        dir: Flybits.cfg.store.RESOURCEPATH
+      });
+      storage.initSync();
+    },
+    remove: function(key){
+      var def = new Deferred();
+      var store = this;
+
+      storage.removeItem(key).then(function(){
+        def.resolve(store);
+      }).catch(function(e){
+        def.reject(e);
+      });
+
+      return def.promise;
+    },
+    set: function(key,value){
+      var def = new Deferred();
+      var store = this;
+      if(!value){
+        return this.remove(key);
+      } else{
+        storage.setItem(key,value).then(function(){
+          def.resolve(store);
+        }).catch(function(e){
+          def.reject(e)
+        });
+      }
+      return def.promise;
+    },
+    get: function(key){
+      var def = new Deferred();
+
+      storage.getItem(key).then(function(val){
+        def.resolve(val);
+      }).catch(function(e){
+        def.reject(e)
+      });
+
+      return def.promise;
+    }
+  };
+
+  return Property;
+})();
+
 /**
  * This is a utility class, do not use constructor.
  * @class Manager
