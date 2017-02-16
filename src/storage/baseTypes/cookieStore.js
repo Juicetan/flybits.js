@@ -37,6 +37,6 @@ var CookieStore = (function(){
     return Promise.resolve();
   };
 
-  return ForageStore;
+  return CookieStore;
 
 })();

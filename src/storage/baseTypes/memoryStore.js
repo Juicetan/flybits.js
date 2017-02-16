@@ -27,6 +27,6 @@ var MemoryStore = (function(){
     return Promise.resolve();
   };
 
-  return ForageStore;
+  return MemoryStore;
 
 })();

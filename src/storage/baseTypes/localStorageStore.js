@@ -37,6 +37,6 @@ var LocalStorageStore = (function(){
     return Promise.resolve();
   };
 
-  return ForageStore;
+  return LocalStorageStore;
 
 })();
