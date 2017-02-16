@@ -12,17 +12,26 @@ var LocalStorageStore = (function(){
   LocalStorageStore.prototype.implements('PropertyStore');
 
   LocalStorageStore.prototype.isSupported = LocalStorageStore.isSupported = function(){
+    var def = new Deferred();
+    var validation = new Validation();
     var support = window && window.localStorage;
     if(support){
       try {
         localStorage.setItem('support', true);
         localStorage.removeItem('support');
+        def.resolve()
       } catch (e) {
-        support = false;
+        def.reject(validation.addError('Storage not supported','Access error:' + e,{
+          context: 'localStorage'
+        }));
       }
+    } else{
+      def.reject(validation.addError('Storage not supported','Missing reference in namespace.',{
+        context: 'localStorage'
+      }));
     }
 
-    return support;
+    return def.promise;
   };
 
   LocalStorageStore.prototype.getItem = function(key){

@@ -8,7 +8,7 @@ Flybits.interface.PropertyStore = {
    * Checks for availability of this property storage type.
    * @function
    * @memberof Flybits.interface.PropertyStore
-   * @return {boolean} `true` or `false` depending on storage type support.
+   * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value if storage type is supported and rejects if it is not.
    */
   isSupported: function(){},
   /**

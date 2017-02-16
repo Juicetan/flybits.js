@@ -12,17 +12,26 @@ var CookieStore = (function(){
   CookieStore.prototype.implements('PropertyStore');
 
   CookieStore.prototype.isSupported = CookieStore.isSupported = function(){
+    var def = new Deferred();
+    var validation = new Validation();
     var support = document && 'cookie' in document;
     if(support){
       try{
         BrowserUtil.setCookie('support','true');
         BrowserUtil.setCookie('support','true',new Date(0));
+        def.resolve();
       } catch(e){
-        support = false;
+        def.reject(validation.addError('Storage not supported','Access error:' + e,{
+          context: 'cookie'
+        }));
       }
+    } else{
+      def.reject(validation.addError('Storage not supported','Missing reference in namespace.',{
+        context: 'cookie'
+      }));
     }
 
-    return support;
+    return def.promise;
   };
 
   CookieStore.prototype.getItem = function(key){

@@ -14,8 +14,26 @@ var ForageStore = (function(){
   ForageStore.prototype.implements('PropertyStore');
 
   ForageStore.prototype.isSupported = ForageStore.isSupported = function(){
-    var support = window && window.localforage && window.localforage._driver;
-    return support;
+    var def = new Deferred();
+    var validation = new Validation();
+    var support = window && window.localforage;
+    if(support){
+      localforage.setItem('support',true).then(function(){
+        return localforage.removeItem('support');
+      }).then(function(){
+        def.resolve();
+      }).catch(function(e){
+        def.reject(validation.addError('Storage not supported','Access error:' + e,{
+          context: 'localforage'
+        }));
+      });
+    } else{
+      def.reject(validation.addError('Storage not supported','No library detected',{
+        context: 'localforage'
+      }));
+    }
+
+    return def.promise;
   };
 
   ForageStore.prototype.getItem = function(key){
