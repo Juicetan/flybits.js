@@ -1,19 +1,36 @@
 Flybits.store.Property.browser = (function(){
   var Deferred = Flybits.Deferred;
+  var _ready = new Deferred();
 
   var availableStorage = [ForageStore,LocalStorageStore,CookieStore,MemoryStore];
-  var getStorageEngine = function(){
-    for(var i = 0; i < availableStorage.length; i++){
-      var CurEngine = availableStorage[i];
-      if(CurEngine.isSupported()){
-        return new CurEngine(Flybits.cfg.store.SDKPROPS);
+  var resolveStorageEngine = function(){
+    var def = new Deferred();
+    var checkStorageEngine = function(){
+      if(availableStorage.length < 1){
+        def.reject(new Validation().addError('No supported property storage engines'))
       }
-    }
+      var CurEngine = availableStorage.shift();
+      CurEngine.isSupported().then(function(){
+        def.resolve(new CurEngine(Flybits.cfg.store.SDKPROPS));
+      }).catch(function(){
+        checkStorageEngine();
+      });
+    };
+    checkStorageEngine();
+
+    return def.promise;
   };
 
   var Property = {
+    ready: _ready.promise,
     init: function(){
-      this.storageEngine = getStorageEngine();
+      var property = this;
+      var engineInit = resolveStorageEngine();
+      engineInit.then(function(engine){
+        property.storageEngine = engine;
+        _ready.resolve();
+      });
+      return engineInit;
     },
     remove: function(key){
       return this.storageEngine.removeItem(key);

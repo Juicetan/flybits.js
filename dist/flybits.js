@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/abstractedStorage:6197454
+// @version feature/abstractedStorage:3bef57a
 ;(function(undefined) {
 
 /**
@@ -100,7 +100,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/abstractedStorage:6197454";
+Flybits.VERSION = "feature/abstractedStorage:3bef57a";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -151,7 +151,9 @@ var initServerFileConfig = function(filePath){
 var setDeviceID = function(){
   var def = new Flybits.Deferred();
   var storage = Flybits.store.Property;
-  storage.get(Flybits.cfg.store.DEVICEID).then(function(val){
+  storage.ready.then(function(){
+    return storage.get(Flybits.cfg.store.DEVICEID);
+  }).then(function(val){
     if(val){
       Flybits.store.Session.deviceID = val;
       return val;
@@ -574,7 +576,7 @@ Flybits.interface.PropertyStore = {
    * Checks for availability of this property storage type.
    * @function
    * @memberof Flybits.interface.PropertyStore
-   * @return {boolean} `true` or `false` depending on storage type support.
+   * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value if storage type is supported and rejects if it is not.
    */
   isSupported: function(){},
   /**
@@ -1922,17 +1924,26 @@ var CookieStore = (function(){
   CookieStore.prototype.implements('PropertyStore');
 
   CookieStore.prototype.isSupported = CookieStore.isSupported = function(){
+    var def = new Deferred();
+    var validation = new Validation();
     var support = document && 'cookie' in document;
     if(support){
       try{
         BrowserUtil.setCookie('support','true');
         BrowserUtil.setCookie('support','true',new Date(0));
+        def.resolve();
       } catch(e){
-        support = false;
+        def.reject(validation.addError('Storage not supported','Access error:' + e,{
+          context: 'cookie'
+        }));
       }
+    } else{
+      def.reject(validation.addError('Storage not supported','Missing reference in namespace.',{
+        context: 'cookie'
+      }));
     }
 
-    return support;
+    return def.promise;
   };
 
   CookieStore.prototype.getItem = function(key){
@@ -1947,7 +1958,7 @@ var CookieStore = (function(){
     return Promise.resolve();
   };
 
-  return ForageStore;
+  return CookieStore;
 
 })();
 var ForageStore = (function(){
@@ -1966,8 +1977,26 @@ var ForageStore = (function(){
   ForageStore.prototype.implements('PropertyStore');
 
   ForageStore.prototype.isSupported = ForageStore.isSupported = function(){
-    var support = window && window.localforage && window.localforage._driver;
-    return support;
+    var def = new Deferred();
+    var validation = new Validation();
+    var support = window && window.localforage;
+    if(support){
+      localforage.setItem('support',true).then(function(){
+        return localforage.removeItem('support');
+      }).then(function(){
+        def.resolve();
+      }).catch(function(e){
+        def.reject(validation.addError('Storage not supported','Access error:' + e,{
+          context: 'localforage'
+        }));
+      });
+    } else{
+      def.reject(validation.addError('Storage not supported','No library detected',{
+        context: 'localforage'
+      }));
+    }
+
+    return def.promise;
   };
 
   ForageStore.prototype.getItem = function(key){
@@ -1997,17 +2026,26 @@ var LocalStorageStore = (function(){
   LocalStorageStore.prototype.implements('PropertyStore');
 
   LocalStorageStore.prototype.isSupported = LocalStorageStore.isSupported = function(){
+    var def = new Deferred();
+    var validation = new Validation();
     var support = window && window.localStorage;
     if(support){
       try {
         localStorage.setItem('support', true);
         localStorage.removeItem('support');
+        def.resolve()
       } catch (e) {
-        support = false;
+        def.reject(validation.addError('Storage not supported','Access error:' + e,{
+          context: 'localStorage'
+        }));
       }
+    } else{
+      def.reject(validation.addError('Storage not supported','Missing reference in namespace.',{
+        context: 'localStorage'
+      }));
     }
 
-    return support;
+    return def.promise;
   };
 
   LocalStorageStore.prototype.getItem = function(key){
@@ -2022,7 +2060,7 @@ var LocalStorageStore = (function(){
     return Promise.resolve();
   };
 
-  return ForageStore;
+  return LocalStorageStore;
 
 })();
 var MemoryStore = (function(){
@@ -2039,7 +2077,7 @@ var MemoryStore = (function(){
   MemoryStore.prototype.implements('PropertyStore');
 
   MemoryStore.prototype.isSupported = MemoryStore.isSupported = function(){
-    return true;
+    return Promise.resolve();
   };
 
   MemoryStore.prototype.getItem = function(key){
@@ -2054,25 +2092,42 @@ var MemoryStore = (function(){
     return Promise.resolve();
   };
 
-  return ForageStore;
+  return MemoryStore;
 
 })();
 Flybits.store.Property.browser = (function(){
   var Deferred = Flybits.Deferred;
+  var _ready = new Deferred();
 
   var availableStorage = [ForageStore,LocalStorageStore,CookieStore,MemoryStore];
-  var getStorageEngine = function(){
-    for(var i = 0; i < availableStorage.length; i++){
-      var CurEngine = availableStorage[i];
-      if(CurEngine.isSupported()){
-        return new CurEngine(Flybits.cfg.store.SDKPROPS);
+  var resolveStorageEngine = function(){
+    var def = new Deferred();
+    var checkStorageEngine = function(){
+      if(availableStorage.length < 1){
+        def.reject(new Validation().addError('No supported property storage engines'))
       }
-    }
+      var CurEngine = availableStorage.shift();
+      CurEngine.isSupported().then(function(){
+        def.resolve(new CurEngine(Flybits.cfg.store.SDKPROPS));
+      }).catch(function(){
+        checkStorageEngine();
+      });
+    };
+    checkStorageEngine();
+
+    return def.promise;
   };
 
   var Property = {
+    ready: _ready.promise,
     init: function(){
-      this.storageEngine = getStorageEngine();
+      var property = this;
+      var engineInit = resolveStorageEngine();
+      engineInit.then(function(engine){
+        property.storageEngine = engine;
+        _ready.resolve();
+      });
+      return engineInit;
     },
     remove: function(key){
       return this.storageEngine.removeItem(key);
@@ -2093,14 +2148,17 @@ Flybits.store.Property.browser = (function(){
 
 Flybits.store.Property.server = (function(){
   var Deferred = Flybits.Deferred;
+  var _ready = new Deferred();
   var storage;
 
   var Property = {
+    ready: _ready.promise,
     init: function(){
       storage = Persistence.create({
         dir: Flybits.cfg.store.RESOURCEPATH
       });
       storage.initSync();
+      _ready.resolve();
     },
     remove: function(key){
       var def = new Deferred();
