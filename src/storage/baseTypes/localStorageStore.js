@@ -17,8 +17,8 @@ var LocalStorageStore = (function(){
     var support = window && window.localStorage;
     if(support){
       try {
-        localStorage.setItem('support', true);
-        localStorage.removeItem('support');
+        localStorage.setItem('flbstoresupport', true);
+        localStorage.removeItem('flbstoresupport');
         def.resolve()
       } catch (e) {
         def.reject(validation.addError('Storage not supported','Access error:' + e,{

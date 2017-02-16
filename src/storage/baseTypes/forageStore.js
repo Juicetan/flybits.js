@@ -18,8 +18,8 @@ var ForageStore = (function(){
     var validation = new Validation();
     var support = window && window.localforage;
     if(support){
-      localforage.setItem('support',true).then(function(){
-        return localforage.removeItem('support');
+      localforage.setItem('flbstoresupport',true).then(function(){
+        return localforage.removeItem('flbstoresupport');
       }).then(function(){
         def.resolve();
       }).catch(function(e){

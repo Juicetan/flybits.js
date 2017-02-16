@@ -17,8 +17,8 @@ var CookieStore = (function(){
     var support = document && 'cookie' in document;
     if(support){
       try{
-        BrowserUtil.setCookie('support','true');
-        BrowserUtil.setCookie('support','true',new Date(0));
+        BrowserUtil.setCookie('flbstoresupport','true');
+        BrowserUtil.setCookie('flbstoresupport','true',new Date(0));
         def.resolve();
       } catch(e){
         def.reject(validation.addError('Storage not supported','Access error:' + e,{

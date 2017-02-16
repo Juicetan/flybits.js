@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/abstractedStorage:3bef57a
+// @version feature/abstractedStorage:493ef1a
 ;(function(undefined) {
 
 /**
@@ -100,7 +100,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/abstractedStorage:3bef57a";
+Flybits.VERSION = "feature/abstractedStorage:493ef1a";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -1929,8 +1929,8 @@ var CookieStore = (function(){
     var support = document && 'cookie' in document;
     if(support){
       try{
-        BrowserUtil.setCookie('support','true');
-        BrowserUtil.setCookie('support','true',new Date(0));
+        BrowserUtil.setCookie('flbstoresupport','true');
+        BrowserUtil.setCookie('flbstoresupport','true',new Date(0));
         def.resolve();
       } catch(e){
         def.reject(validation.addError('Storage not supported','Access error:' + e,{
@@ -1981,8 +1981,8 @@ var ForageStore = (function(){
     var validation = new Validation();
     var support = window && window.localforage;
     if(support){
-      localforage.setItem('support',true).then(function(){
-        return localforage.removeItem('support');
+      localforage.setItem('flbstoresupport',true).then(function(){
+        return localforage.removeItem('flbstoresupport');
       }).then(function(){
         def.resolve();
       }).catch(function(e){
@@ -2031,8 +2031,8 @@ var LocalStorageStore = (function(){
     var support = window && window.localStorage;
     if(support){
       try {
-        localStorage.setItem('support', true);
-        localStorage.removeItem('support');
+        localStorage.setItem('flbstoresupport', true);
+        localStorage.removeItem('flbstoresupport');
         def.resolve()
       } catch (e) {
         def.reject(validation.addError('Storage not supported','Access error:' + e,{
