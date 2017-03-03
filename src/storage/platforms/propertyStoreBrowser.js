@@ -3,9 +3,9 @@ Flybits.store.Property.browser = (function(){
   var Validation = Flybits.Validation;
   var _ready = new Deferred();
 
-  var availableStorage = [ForageStore,LocalStorageStore,CookieStore,MemoryStore];
   var resolveStorageEngine = function(){
     var def = new Deferred();
+    var availableStorage = [ForageStore,LocalStorageStore,CookieStore,MemoryStore];
     var checkStorageEngine = function(){
       if(availableStorage.length < 1){
         def.reject(new Validation().addError('No supported property storage engines'))
