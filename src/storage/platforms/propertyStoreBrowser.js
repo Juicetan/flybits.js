@@ -1,5 +1,6 @@
 Flybits.store.Property.browser = (function(){
   var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
   var _ready = new Deferred();
 
   var availableStorage = [ForageStore,LocalStorageStore,CookieStore,MemoryStore];
