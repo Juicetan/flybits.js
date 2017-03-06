@@ -2,7 +2,7 @@ var LocalStorageStore = (function(){
   var Deferred = Flybits.Deferred;
   var Validation = Flybits.Validation;
 
-  var LocalStorageStore = function(){
+  function LocalStorageStore(){
     BaseObj.call(this);
     this.store = localStorage;
   };

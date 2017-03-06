@@ -3,7 +3,7 @@ var CookieStore = (function(){
   var Validation = Flybits.Validation;
   var BrowserUtil = Flybits.util.Browser;
 
-  var CookieStore = function(){
+  function CookieStore(){
     BaseObj.call(this);
   };
 

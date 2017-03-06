@@ -2,7 +2,7 @@ var MemoryStore = (function(){
   var Deferred = Flybits.Deferred;
   var Validation = Flybits.Validation;
 
-  var MemoryStore = function(){
+  function MemoryStore(){
     BaseObj.call(this);
     this.store = {};
   };

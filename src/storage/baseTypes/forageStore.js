@@ -2,7 +2,7 @@ var ForageStore = (function(){
   var Deferred = Flybits.Deferred;
   var Validation = Flybits.Validation;
 
-  var ForageStore = function(storeName){
+  function ForageStore(storeName){
     BaseObj.call(this);
     this.store = localforage.createInstance({
       name: storeName

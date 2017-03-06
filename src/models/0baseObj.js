@@ -3,7 +3,7 @@
  * @class
  */
 var BaseObj = (function(){
-  var BaseObj = function(){};
+  function BaseObj(){};
   BaseObj.prototype = {
     implements: function(interfaceName){
       if(!this._interfaces){
