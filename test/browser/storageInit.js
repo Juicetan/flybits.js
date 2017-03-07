@@ -139,3 +139,103 @@ describe('Browser: LocalStorage based property storage initialization',function(
   });
 });
 
+describe('Cookie based property storage initialization',function(){
+  before(function(){
+    global.document = {
+      cookie: ""
+    };
+    global.window = {};
+
+    mockery.enable({
+      useCleanCache: true,
+      warnOnReplace: false,
+      warnOnUnregistered: false
+    });
+    
+    require('../../index.js');
+    global.Flybits = window.Flybits;
+    return Flybits.store.Property.ready;
+  });
+  after(function(){
+    delete global.document;
+    delete global.window;
+    delete global.Flybits;
+    mockery.disable();
+  });
+
+  it('should be an instance of CookieStore', function(){
+    Flybits.store.Property.storageEngine.constructor.name.should.be.exactly('CookieStore');
+  });
+
+  it('should have tested support', function(){
+    document.cookie.should.not.be.empty();
+  });
+});
+
+describe('Safari private browsing', function(){
+  var localForageRemoveSpy;
+  var localForageSetSpy;
+  var localStorageRemoveSpy;
+  var localStorageSetSpy;
+
+  before(function(){
+    global.document = {
+      cookie: ""
+    };
+    global.window = {
+      localforage: new MemoryStore(),
+      localStorage: new MemoryStore(),
+    };
+    global.localforage = window.localforage;
+    global.localStorage = window.localStorage;
+
+    mockery.enable({
+      useCleanCache: true,
+      warnOnReplace: false,
+      warnOnUnregistered: false
+    });
+
+
+    localForageSetSpy = sinon.stub(localforage, 'setItem', function(){
+      return Promise.reject();
+    });
+    localForageRemoveSpy = sinon.spy(localforage, 'removeItem');
+
+    localStorageSetSpy = sinon.stub(localStorage, 'setItem', function(){
+      throw e;
+    });
+    localStorageRemoveSpy = sinon.spy(localStorage, 'removeItem');
+    
+    require('../../index.js');
+    global.Flybits = window.Flybits;
+    return Flybits.store.Property.ready;
+  });
+  after(function(){
+    localForageSetSpy.restore();
+    localForageRemoveSpy.restore();
+    localStorageSetSpy.restore();
+    localStorageRemoveSpy.restore();
+    delete global.document;
+    delete global.window;
+    delete global.localStorage;
+    delete global.localforage;
+    delete global.Flybits;
+    mockery.disable();
+  });
+
+  it('localforage should reject support', function(){
+    localForageSetSpy.should.be.calledOnce();
+    localForageRemoveSpy.notCalled.should.be.true();
+  });
+  it('localStorage should reject support', function(){
+    localStorageSetSpy.should.be.calledOnce();
+    localStorageRemoveSpy.notCalled.should.be.true();
+  });
+  it('failover to cookie support', function(){
+    Flybits.store.Property.storageEngine.constructor.name.should.be.exactly('CookieStore');
+    document.cookie.should.not.be.empty();
+  });
+});
+
+
+});
