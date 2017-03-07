@@ -34,7 +34,7 @@ describe('Browser: Property storage initialization is asynchronous',function(){
 });
 
 describe('Browser: LocalForage based property storage initialization',function(){
-  var getSpy;
+  var removeSpy;
   var setSpy;
 
   before(function(){
@@ -60,8 +60,8 @@ describe('Browser: LocalForage based property storage initialization',function()
       warnOnUnregistered: false
     });
     
-    setSpy = sinon.spy(localforage,'setItem');
-    getSpy = sinon.spy(localforage,'getItem');
+    setSpy = sinon.spy(localforage, 'setItem');
+    removeSpy = sinon.spy(localforage, 'removeItem');
 
     require('../../index.js');
     global.Flybits = window.Flybits;
@@ -71,16 +71,18 @@ describe('Browser: LocalForage based property storage initialization',function()
     delete global.window;
     delete global.localforage;
     delete global.Flybits;
+    setSpy.restore();
+    removeSpy.restore();
     mockery.disable();
   });
 
-  it('should be an instance of ForageStore', function(done){
+  it('should be an instance of ForageStore', function(){
     Flybits.store.Property.storageEngine.constructor.name.should.be.exactly('ForageStore');
   });
 
   it('should have tested support', function(){
     setSpy.should.be.calledOnce();
-    getSpy.should.be.calledOnce();
+    removeSpy.should.be.calledOnce();
   });
 });
 
