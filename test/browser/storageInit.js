@@ -86,3 +86,56 @@ describe('Browser: LocalForage based property storage initialization',function()
   });
 });
 
+describe('Browser: LocalStorage based property storage initialization',function(){
+  var removeSpy;
+  var setSpy;
+
+  before(function(){
+    global.window = {
+      localStorage: new MemoryStore()
+    };
+    global.localStorage = window.localStorage;
+    global.Flybits = {
+      cfg: {
+        store: {
+          SDKPROPS: 'flb.sdk.properties',
+          RESOURCEPATH: "./res/",
+          DEVICEID: 'flb_device',
+          USERTOKEN: 'flb_usertoken',
+          USERTOKENEXP: 'flb_usertoken_expiry'
+        }
+      }
+    }
+
+    mockery.enable({
+      useCleanCache: true,
+      warnOnReplace: false,
+      warnOnUnregistered: false
+    });
+    
+    setSpy = sinon.spy(localStorage, 'setItem');
+    removeSpy = sinon.spy(localStorage, 'removeItem');
+
+    require('../../index.js');
+    global.Flybits = window.Flybits;
+    return Flybits.store.Property.ready;
+  });
+  after(function(){
+    delete global.window;
+    delete global.localStorage;
+    delete global.Flybits;
+    setSpy.restore();
+    removeSpy.restore();
+    mockery.disable();
+  });
+
+  it('should be an instance of LocalStorageStore', function(){
+    Flybits.store.Property.storageEngine.constructor.name.should.be.exactly('LocalStorageStore');
+  });
+
+  it('should have tested support', function(){
+    setSpy.should.be.calledOnce();
+    removeSpy.should.be.calledOnce();
+  });
+});
+
