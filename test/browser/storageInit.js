@@ -190,7 +190,45 @@ describe('Browser: Property Storage', function(){
     });
   });
 
-  describe('Safari private browsing', function(){
+  describe('In-memory based property storage initialization',function(){
+    var localStorageStub;
+    before(function(){
+      mockery.enable({
+        useCleanCache: true,
+        warnOnReplace: false,
+        warnOnUnregistered: false
+      });
+
+      localStorageStub = sinon.stub(localStorage,'setItem',function(){
+        throw e;
+      });
+
+      delete document.cookie;
+
+      require('../../index.js');
+      global.Flybits = window.Flybits;
+      return Flybits.store.Property.ready;
+    });
+    after(function(){
+      localStorageStub.restore();
+      global.Flybits = sdkStub;
+      document.cookie = "";
+      mockery.disable();
+    });
+
+    it('should be an instance of MemoryStore', function(){
+      Flybits.store.Property.storageEngine.constructor.name.should.be.exactly('MemoryStore');
+    });
+
+    it('should implement PropertyStore interface', function(){
+      var storageEngine = Flybits.store.Property.storageEngine;
+      storageEngine._interfaces.should.have.length(1);
+      storageEngine._interfaces[0].should.be.exactly('PropertyStore');
+      ModelUtil.checkProtoImplementation(storageEngine,Flybits.interface.PropertyStore).should.be.true();
+    });
+  });
+
+  describe('Safari/Firefox private browsing', function(){
     var localForageRemoveSpy;
     var localForageSetSpy;
     var localStorageRemoveSpy;
