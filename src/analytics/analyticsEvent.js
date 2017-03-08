@@ -12,7 +12,7 @@ analytics.Event = (function(){
   var Event = function(serverObj){
     BaseModel.call(this,serverObj);
     this._tmpID = ObjUtil.guid(1) + '-' + Date.now();
-    this.type = this.types.EVENT_DISCRETE;
+    this.type = this.types.DISCRETE;
     this.name = '';
     this.loggedAt = new Date();
     this.properties = {};
