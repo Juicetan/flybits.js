@@ -44,6 +44,16 @@ analytics.Event = (function(){
   Event.prototype.OSTYPE = Event.OSTYPE = 'osType';
   Event.prototype.OSVERSION = Event.OSVERSION = 'osVersion';
 
+  Event.prototype._setProp = function(obj, key, value){
+    if(typeof value === 'undefined' || value === null){
+      delete obj[key];
+      return this;
+    }
+
+    obj[key] = value;
+    return this;
+  };
+
   /**
    * Used to set custom properties on to an analytics event.
    * @function setProperty
@@ -52,14 +62,12 @@ analytics.Event = (function(){
    * @param {string} key Data key.
    * @param {Object} value Any valid JSON value to be stored based on provided key.  If `null` or `undefined` is provided then the provided key will be removed from the properties map.
    */
-  Event.prototype.setProperty = function(key,value){
-    if(typeof value === 'undefined' || value === null){
-      delete this.properties[key];
-      return this;
-    }
+  Event.prototype.setProperty = function(key, value){
+    return this._setProp(this.properties, key, value);
+  };
 
-    this.properties[key] = value;
-    return this;
+  Event.prototype._setInternalProperty = function(key, value){
+    return this._setProp(this._internal, key, value);
   };
 
   Event.prototype.fromJSON = function(serverObj){
@@ -88,7 +96,8 @@ analytics.Event = (function(){
      */
     this.properties = serverObj.properties || {};
 
-    this._isInternal = serverObj._isInternal || false;
+    this._internal = serverObj.flbProperties || {};
+    this._isInternal = serverObj.isFlybits || false;
   };
 
   Event.prototype.toJSON = function(){
