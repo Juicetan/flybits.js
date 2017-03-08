@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/abstractedStorage:493ef1a
+// @version master:1ba9d59
 ;(function(undefined) {
 
 /**
@@ -100,7 +100,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/abstractedStorage:493ef1a";
+Flybits.VERSION = "master:1ba9d59";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -667,7 +667,7 @@ Flybits.interface.Taggable = {
  * @class
  */
 var BaseObj = (function(){
-  var BaseObj = function(){};
+  function BaseObj(){};
   BaseObj.prototype = {
     implements: function(interfaceName){
       if(!this._interfaces){
@@ -1915,7 +1915,7 @@ var CookieStore = (function(){
   var Validation = Flybits.Validation;
   var BrowserUtil = Flybits.util.Browser;
 
-  var CookieStore = function(){
+  function CookieStore(){
     BaseObj.call(this);
   };
 
@@ -1965,7 +1965,7 @@ var ForageStore = (function(){
   var Deferred = Flybits.Deferred;
   var Validation = Flybits.Validation;
 
-  var ForageStore = function(storeName){
+  function ForageStore(storeName){
     BaseObj.call(this);
     this.store = localforage.createInstance({
       name: storeName
@@ -2016,7 +2016,7 @@ var LocalStorageStore = (function(){
   var Deferred = Flybits.Deferred;
   var Validation = Flybits.Validation;
 
-  var LocalStorageStore = function(){
+  function LocalStorageStore(){
     BaseObj.call(this);
     this.store = localStorage;
   };
@@ -2067,7 +2067,7 @@ var MemoryStore = (function(){
   var Deferred = Flybits.Deferred;
   var Validation = Flybits.Validation;
 
-  var MemoryStore = function(){
+  function MemoryStore(){
     BaseObj.call(this);
     this.store = {};
   };
@@ -2097,11 +2097,12 @@ var MemoryStore = (function(){
 })();
 Flybits.store.Property.browser = (function(){
   var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
   var _ready = new Deferred();
 
-  var availableStorage = [ForageStore,LocalStorageStore,CookieStore,MemoryStore];
   var resolveStorageEngine = function(){
     var def = new Deferred();
+    var availableStorage = [ForageStore,LocalStorageStore,CookieStore,MemoryStore];
     var checkStorageEngine = function(){
       if(availableStorage.length < 1){
         def.reject(new Validation().addError('No supported property storage engines'))
