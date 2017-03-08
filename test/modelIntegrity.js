@@ -130,3 +130,32 @@ describe('ContextPlugin Integrity',function(){
     }
   });
 });
+
+describe('Analytics Event Integrity', function(){
+  var Flybits;
+  before(function(){
+    global.window = {};
+    mockery.enable({
+      useCleanCache: true,
+      warnOnReplace: false,
+      warnOnUnregistered: false
+    });
+    require('../index.js');
+    Flybits = window.Flybits;
+  });
+  after(function(){
+    delete global.window;
+    mockery.disable();
+  });
+
+  it('Event implements interfaces', function(){
+    var proto = Flybits.analytics.Event.prototype;
+    var interfaces = proto._interfaces;
+    for(var i = 0; i < interfaces.length; i++){
+      var interface = Flybits.interface[interfaces[i]];
+      if(interface){
+        ModelUtil.checkProtoImplementation(proto,interface).should.be.true();
+      }
+    }
+  });
+});

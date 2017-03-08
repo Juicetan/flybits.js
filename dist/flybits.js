@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/analytics:45fcdb1
+// @version feature/analytics:33c8cef
 ;(function(undefined) {
 
 /**
@@ -114,7 +114,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/analytics:45fcdb1";
+Flybits.VERSION = "feature/analytics:33c8cef";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
