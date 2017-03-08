@@ -25,6 +25,21 @@ analytics.Manager = (function(){
     return Promise.settle([lastReportedPromise,lastReportAttemptedPromise]);
   };
 
+  var applyDefaultSysProps = function(event){
+    if(typeof window === 'object'){
+      event._setInternalProperty(Event.OSTYPE,'browser');
+      if(window.hasOwnProperty('navigator')){
+        event._setInternalProperty(Event.OSVERSION,navigator.userAgent);
+      }
+    } else{
+      event._setInternalProperty(Event.OSTYPE,'node');
+      if(typeof process !== 'undefined'){
+        event._setInternalProperty(Event.OSVERSION,process.version);
+      }
+    }
+    return event;
+  };
+
   var timeUnitMultiplier = {
     milliseconds: 1,
     seconds: 1000,
@@ -153,7 +168,7 @@ analytics.Manager = (function(){
       var eventTmpIDs;
       this._analyticsStore.getAllEvents().then(function(events){
         eventTmpIDs = events.map(function(evt){
-          return evt.tmpID;
+          return evt._tmpID;
         });
         if(eventTmpIDs.length < 1){
           throw new Validation().addError('No analytics to upload.','',{
@@ -190,9 +205,11 @@ analytics.Manager = (function(){
     logEvent: function(eventName, properties){
       var evt = new Event({
         name: eventName,
-        type: Event.types.DISCRETE
+        type: Event.types.DISCRETE,
+        properties: properties
       });
-      evt.properties = properties;
+
+      applyDefaultSysProps(evt);
 
       return this._analyticsStore.addEvent(evt);
     },
@@ -209,14 +226,15 @@ analytics.Manager = (function(){
       var def = new Deferred();
       var evt = new Event({
         name: eventName,
-        type: Event.types.TIMEDSTART
+        type: Event.types.TIMEDSTART,
+        properties: properties
       });
-      evt.properties = properties || {};
-      evt.setProperty('_timedRef',evt.tmpID);
+      applyDefaultSysProps(evt);
+      evt._setInternalProperty(Event.TIMEDREFID, evt._tmpID);
 
       this._analyticsStore.addEvent(evt).then(function(){
-        manager._timedEventCache[evt.tmpID] = evt;
-        def.resolve(evt.tmpID);
+        manager._timedEventCache[evt._tmpID] = evt;
+        def.resolve(evt._tmpID);
       }).catch(function(e){
         def.reject(e);
       });
@@ -247,6 +265,9 @@ analytics.Manager = (function(){
         type: Event.types.TIMEDEND,
         properties: startedEvt.properties
       });
+      endEvt._internal = startedEvt._internal;
+      endEvt._isInternal = startedEvt._isInternal;
+
       this._analyticsStore.addEvent(endEvt).then(function(){
         delete manager._timedEventCache[refID];
         def.resolve();

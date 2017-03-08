@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/analytics:f0c0fda
+// @version feature/analytics:45fcdb1
 ;(function(undefined) {
 
 /**
@@ -114,7 +114,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/analytics:f0c0fda";
+Flybits.VERSION = "feature/analytics:45fcdb1";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -2919,11 +2919,13 @@ analytics.Event = (function(){
 
   var Event = function(serverObj){
     BaseModel.call(this,serverObj);
-    this.tmpID = ObjUtil.guid(1) + '-' + Date.now();
+    this._tmpID = ObjUtil.guid(1) + '-' + Date.now();
     this.type = this.types.EVENT_DISCRETE;
     this.name = '';
     this.loggedAt = new Date();
     this.properties = {};
+    this._internal = {};
+    this._isInternal = false;
 
     if(serverObj){
       this.fromJSON(serverObj);
@@ -2946,6 +2948,20 @@ analytics.Event = (function(){
   Event.prototype.types.TIMEDSTART = Event.types.TIMEDSTART = 'event_timestart';
   Event.prototype.types.TIMEDEND = Event.types.TIMEDEND = 'event_timeend';
 
+  Event.prototype.TIMEDREFID = Event.TIMEDREFID = 'timedRef';
+  Event.prototype.OSTYPE = Event.OSTYPE = 'osType';
+  Event.prototype.OSVERSION = Event.OSVERSION = 'osVersion';
+
+  Event.prototype._setProp = function(obj, key, value){
+    if(typeof value === 'undefined' || value === null){
+      delete obj[key];
+      return this;
+    }
+
+    obj[key] = value;
+    return this;
+  };
+
   /**
    * Used to set custom properties on to an analytics event.
    * @function setProperty
@@ -2954,18 +2970,15 @@ analytics.Event = (function(){
    * @param {string} key Data key.
    * @param {Object} value Any valid JSON value to be stored based on provided key.  If `null` or `undefined` is provided then the provided key will be removed from the properties map.
    */
-  Event.prototype.setProperty = function(key,value){
-    if(typeof value === 'undefined' || value === null){
-      delete this.properties[key];
-      return this;
-    }
+  Event.prototype.setProperty = function(key, value){
+    return this._setProp(this.properties, key, value);
+  };
 
-    this.properties[key] = value;
-    return this;
+  Event.prototype._setInternalProperty = function(key, value){
+    return this._setProp(this._internal, key, value);
   };
 
   Event.prototype.fromJSON = function(serverObj){
-    var obj = this;
     /**
      * @instance
      * @memberof Flybits.analytics.Event
@@ -2990,6 +3003,9 @@ analytics.Event = (function(){
      * @member {Object} properties Custom event properties.
      */
     this.properties = serverObj.properties || {};
+
+    this._internal = serverObj.flbProperties || {};
+    this._isInternal = serverObj.isFlybits || false;
   };
 
   Event.prototype.toJSON = function(){
@@ -2998,7 +3014,9 @@ analytics.Event = (function(){
       type: this.type,
       name: this.name,
       loggedAt: this.loggedAt.getTime(),
-      properties: this.properties
+      properties: this.properties,
+      flbProperties: this._internal,
+      isFlybits: this._isInternal
     };
 
     return retObj;
@@ -3032,6 +3050,21 @@ analytics.Manager = (function(){
     });
 
     return Promise.settle([lastReportedPromise,lastReportAttemptedPromise]);
+  };
+
+  var applyDefaultSysProps = function(event){
+    if(typeof window === 'object'){
+      event._setInternalProperty(Event.OSTYPE,'browser');
+      if(window.hasOwnProperty('navigator')){
+        event._setInternalProperty(Event.OSVERSION,navigator.userAgent);
+      }
+    } else{
+      event._setInternalProperty(Event.OSTYPE,'node');
+      if(typeof process !== 'undefined'){
+        event._setInternalProperty(Event.OSVERSION,process.version);
+      }
+    }
+    return event;
   };
 
   var timeUnitMultiplier = {
@@ -3128,7 +3161,8 @@ analytics.Manager = (function(){
       var manager = this;
       manager.stopReporting();
       
-      Flybits.api.User.getSignedInUser().then(function(user){
+      var sessionPromise = Session.user?Promise.resolve(Session.user):Flybits.api.User.getSignedInUser();
+      sessionPromise.then(function(user){
         var interval;
         interval = function(){
           manager.report().catch(function(e){}).then(function(){
@@ -3161,7 +3195,7 @@ analytics.Manager = (function(){
       var eventTmpIDs;
       this._analyticsStore.getAllEvents().then(function(events){
         eventTmpIDs = events.map(function(evt){
-          return evt.tmpID;
+          return evt._tmpID;
         });
         if(eventTmpIDs.length < 1){
           throw new Validation().addError('No analytics to upload.','',{
@@ -3198,9 +3232,11 @@ analytics.Manager = (function(){
     logEvent: function(eventName, properties){
       var evt = new Event({
         name: eventName,
-        type: Event.types.DISCRETE
+        type: Event.types.DISCRETE,
+        properties: properties
       });
-      evt.properties = properties;
+
+      applyDefaultSysProps(evt);
 
       return this._analyticsStore.addEvent(evt);
     },
@@ -3217,14 +3253,15 @@ analytics.Manager = (function(){
       var def = new Deferred();
       var evt = new Event({
         name: eventName,
-        type: Event.types.TIMEDSTART
+        type: Event.types.TIMEDSTART,
+        properties: properties
       });
-      evt.properties = properties || {};
-      evt.setProperty('_timedRef',evt.tmpID);
+      applyDefaultSysProps(evt);
+      evt._setInternalProperty(Event.TIMEDREFID, evt._tmpID);
 
       this._analyticsStore.addEvent(evt).then(function(){
-        manager._timedEventCache[evt.tmpID] = evt;
-        def.resolve(evt.tmpID);
+        manager._timedEventCache[evt._tmpID] = evt;
+        def.resolve(evt._tmpID);
       }).catch(function(e){
         def.reject(e);
       });
@@ -3255,6 +3292,9 @@ analytics.Manager = (function(){
         type: Event.types.TIMEDEND,
         properties: startedEvt.properties
       });
+      endEvt._internal = startedEvt._internal;
+      endEvt._isInternal = startedEvt._isInternal;
+
       this._analyticsStore.addEvent(endEvt).then(function(){
         delete manager._timedEventCache[refID];
         def.resolve();
