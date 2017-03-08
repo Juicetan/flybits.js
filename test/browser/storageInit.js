@@ -2,7 +2,8 @@ var should = require('should');
 var mockery = require('mockery');
 var sinon = require('sinon');
 require('should-sinon');
-var MemoryStore = require('../_assets/storeMock.js');
+var MemoryStore = require('../_assets/storeMock');
+var ModelUtil = require('../_util/model');
 
 var sdkStub = {
   cfg: {
@@ -95,6 +96,13 @@ describe('Browser: Property Storage', function(){
       Flybits.store.Property.storageEngine.constructor.name.should.be.exactly('ForageStore');
     });
 
+    it('should implement PropertyStore interface', function(){
+      var storageEngine = Flybits.store.Property.storageEngine;
+      storageEngine._interfaces.should.have.length(1);
+      storageEngine._interfaces[0].should.be.exactly('PropertyStore');
+      ModelUtil.checkProtoImplementation(storageEngine,Flybits.interface.PropertyStore).should.be.true();
+    });
+
     it('should have tested support', function(){
       setSpy.should.be.calledOnce();
       removeSpy.should.be.calledOnce();
@@ -130,6 +138,13 @@ describe('Browser: Property Storage', function(){
       Flybits.store.Property.storageEngine.constructor.name.should.be.exactly('LocalStorageStore');
     });
 
+    it('should implement PropertyStore interface', function(){
+      var storageEngine = Flybits.store.Property.storageEngine;
+      storageEngine._interfaces.should.have.length(1);
+      storageEngine._interfaces[0].should.be.exactly('PropertyStore');
+      ModelUtil.checkProtoImplementation(storageEngine,Flybits.interface.PropertyStore).should.be.true();
+    });
+
     it('should have tested support', function(){
       setSpy.should.be.calledOnce();
       removeSpy.should.be.calledOnce();
@@ -161,6 +176,13 @@ describe('Browser: Property Storage', function(){
 
     it('should be an instance of CookieStore', function(){
       Flybits.store.Property.storageEngine.constructor.name.should.be.exactly('CookieStore');
+    });
+
+    it('should implement PropertyStore interface', function(){
+      var storageEngine = Flybits.store.Property.storageEngine;
+      storageEngine._interfaces.should.have.length(1);
+      storageEngine._interfaces[0].should.be.exactly('PropertyStore');
+      ModelUtil.checkProtoImplementation(storageEngine,Flybits.interface.PropertyStore).should.be.true();
     });
 
     it('should have tested support', function(){
