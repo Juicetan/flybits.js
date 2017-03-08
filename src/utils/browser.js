@@ -12,25 +12,11 @@ Flybits.util.Browser = (function(){
       }
     },
     setCookie: function(key,value,expiryDateObj){
-      var expires;
+      var expires = "";
       if (expiryDateObj) {
         expires = "; expires=" + expiryDateObj.toGMTString();
       }
-      else {
-        expires = "";
-      }
       document.cookie = key + "=" + value + expires + "; path=/";
-    },
-    getFingerprint: function(){
-      var def = new Deferred();
-      var finger = new Fingerprint2().get(function(result, components){
-        if(!result || components.length <= 0){
-          def.reject();
-        }
-        def.resolve(result);
-      });
-
-      return def.promise;
     }
   };
 

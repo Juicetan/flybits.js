@@ -1,13 +1,16 @@
 Flybits.store.Property.server = (function(){
   var Deferred = Flybits.Deferred;
+  var _ready = new Deferred();
   var storage;
 
   var Property = {
+    ready: _ready.promise,
     init: function(){
       storage = Persistence.create({
         dir: Flybits.cfg.store.RESOURCEPATH
       });
       storage.initSync();
+      _ready.resolve();
     },
     remove: function(key){
       var def = new Deferred();

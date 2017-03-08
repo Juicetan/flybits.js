@@ -1,5 +1,6 @@
 var should = require('should');
 var mockery = require('mockery');
+var ModelUtil = require('./_util/model');
 
 var getArgs = function(func) {
   // First match everything inside the function argument parens.
@@ -13,17 +14,6 @@ var getArgs = function(func) {
     // Ensure no undefined values are added.
     return arg;
   });
-};
-
-var checkProtoImplementation = function(proto,interface){
-  var interfaceKeys = Object.keys(interface);
-  for(var i = 0; i < interfaceKeys.length; i++){
-    var functionName = interfaceKeys[i];
-    if(!proto[functionName] || proto[functionName].length !== interface[functionName].length){
-      return false;
-    }
-  }
-  return true;
 };
 
 describe('Model Integrity',function(){
@@ -46,7 +36,7 @@ describe('Model Integrity',function(){
     for(var i = 0; i < interfaces.length; i++){
       var interface = Flybits.interface[interfaces[i]];
       if(interface){
-        checkProtoImplementation(proto,interface).should.be.true();
+        ModelUtil.checkProtoImplementation(proto,interface).should.be.true();
       }
     }
   });
@@ -56,7 +46,7 @@ describe('Model Integrity',function(){
     for(var i = 0; i < interfaces.length; i++){
       var interface = Flybits.interface[interfaces[i]];
       if(interface){
-        checkProtoImplementation(proto,interface).should.be.true();
+        ModelUtil.checkProtoImplementation(proto,interface).should.be.true();
       }
     }
   });
@@ -66,7 +56,7 @@ describe('Model Integrity',function(){
     for(var i = 0; i < interfaces.length; i++){
       var interface = Flybits.interface[interfaces[i]];
       if(interface){
-        checkProtoImplementation(proto,interface).should.be.true();
+        ModelUtil.checkProtoImplementation(proto,interface).should.be.true();
       }
     }
   });
@@ -76,7 +66,7 @@ describe('Model Integrity',function(){
     for(var i = 0; i < interfaces.length; i++){
       var interface = Flybits.interface[interfaces[i]];
       if(interface){
-        checkProtoImplementation(proto,interface).should.be.true();
+        ModelUtil.checkProtoImplementation(proto,interface).should.be.true();
       }
     }
   });
@@ -86,7 +76,7 @@ describe('Model Integrity',function(){
     for(var i = 0; i < interfaces.length; i++){
       var interface = Flybits.interface[interfaces[i]];
       if(interface){
-        checkProtoImplementation(proto,interface).should.be.true();
+        ModelUtil.checkProtoImplementation(proto,interface).should.be.true();
       }
     }
   });
@@ -96,7 +86,7 @@ describe('Model Integrity',function(){
     for(var i = 0; i < interfaces.length; i++){
       var interface = Flybits.interface[interfaces[i]];
       if(interface){
-        checkProtoImplementation(proto,interface).should.be.true();
+        ModelUtil.checkProtoImplementation(proto,interface).should.be.true();
       }
     }
   });
@@ -125,7 +115,7 @@ describe('ContextPlugin Integrity',function(){
     for(var i = 0; i < interfaces.length; i++){
       var interface = Flybits.interface[interfaces[i]];
       if(interface){
-        checkProtoImplementation(proto,interface).should.be.true();
+        ModelUtil.checkProtoImplementation(proto,interface).should.be.true();
       }
     }
   });
@@ -135,7 +125,7 @@ describe('ContextPlugin Integrity',function(){
     for(var i = 0; i < interfaces.length; i++){
       var interface = Flybits.interface[interfaces[i]];
       if(interface){
-        checkProtoImplementation(proto,interface).should.be.true();
+        ModelUtil.checkProtoImplementation(proto,interface).should.be.true();
       }
     }
   });

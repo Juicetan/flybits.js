@@ -29,7 +29,7 @@
     "run-sequence": "^1.1.5",
     "should": "^9.0.2",
     "should-sinon": "0.0.5",
-    "sinon": "^1.17.4"
+    "sinon": "^1.17.7"
   },
   "scripts": {
     "test": "mocha --colors --recursive",
@@ -42,8 +42,8 @@
   ],
   "author": "Justin Lam",
   "license": "Apache-2.0",
-  "repository" : {
-    "type" : "git",
-    "url" : "git+https://github.com/flybits/flybits.js.git"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flybits/flybits.js.git"
   }
 }
