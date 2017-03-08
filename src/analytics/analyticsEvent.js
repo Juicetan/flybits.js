@@ -11,11 +11,13 @@ analytics.Event = (function(){
 
   var Event = function(serverObj){
     BaseModel.call(this,serverObj);
-    this.tmpID = ObjUtil.guid(1) + '-' + Date.now();
+    this._tmpID = ObjUtil.guid(1) + '-' + Date.now();
     this.type = this.types.EVENT_DISCRETE;
     this.name = '';
     this.loggedAt = new Date();
     this.properties = {};
+    this._internal = {};
+    this._isInternal = false;
 
     if(serverObj){
       this.fromJSON(serverObj);
@@ -38,6 +40,10 @@ analytics.Event = (function(){
   Event.prototype.types.TIMEDSTART = Event.types.TIMEDSTART = 'event_timestart';
   Event.prototype.types.TIMEDEND = Event.types.TIMEDEND = 'event_timeend';
 
+  Event.prototype.TIMEDREFID = Event.TIMEDREFID = 'timedRef';
+  Event.prototype.OSTYPE = Event.OSTYPE = 'osType';
+  Event.prototype.OSVERSION = Event.OSVERSION = 'osVersion';
+
   /**
    * Used to set custom properties on to an analytics event.
    * @function setProperty
@@ -57,7 +63,6 @@ analytics.Event = (function(){
   };
 
   Event.prototype.fromJSON = function(serverObj){
-    var obj = this;
     /**
      * @instance
      * @memberof Flybits.analytics.Event
@@ -82,6 +87,8 @@ analytics.Event = (function(){
      * @member {Object} properties Custom event properties.
      */
     this.properties = serverObj.properties || {};
+
+    this._isInternal = serverObj._isInternal || false;
   };
 
   Event.prototype.toJSON = function(){
@@ -90,7 +97,9 @@ analytics.Event = (function(){
       type: this.type,
       name: this.name,
       loggedAt: this.loggedAt.getTime(),
-      properties: this.properties
+      properties: this.properties,
+      flbProperties: this._internal,
+      isFlybits: this._isInternal
     };
 
     return retObj;
