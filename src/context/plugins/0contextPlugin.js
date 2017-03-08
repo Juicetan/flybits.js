@@ -15,6 +15,7 @@ context.ContextPlugin = (function(){
     if(this.constructor.name === 'Object'){
       throw new Error('Abstract classes cannot be instantiated');
     }
+    BaseObj.call(this);
 
     this._refreshTimeout = null;
 
@@ -82,189 +83,10 @@ context.ContextPlugin = (function(){
       }
     }
   };
-  ContextPlugin.prototype = {
-    implements: function(interfaceName){
-      if(!this._interfaces){
-        this._interfaces = [];
-      }
-      this._interfaces.push(interfaceName);
-    },
-    /**
-     * Starts a scheduled service that continuously retrieves context data for this plugin.
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @function startService
-     * @return {Flybits.context.ContextPlugin} Reference to this context plugin to allow for method chaining.
-     */
-    startService: function(){
-      this.stopService();
 
-      var interval;
-      interval = function(contextPlugin){
-        contextPlugin.collectState().catch(function(e){}).then(function(){
-          if(contextPlugin.isServiceRunning){
-            contextPlugin._refreshTimeout = setTimeout(function(){
-              interval(contextPlugin);
-            },contextPlugin.refreshDelay);
-          }
-        });
-
-        contextPlugin.isServiceRunning = true;
-      };
-      interval(this);
-
-      return this;
-    },
-    /**
-     * Stops the scheduled service that continuously retrieves context data for this plugin.
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @function stopService
-     * @return {Flybits.context.ContextPlugin} Reference to this context plugin to allow for method chaining.
-     */
-    stopService: function(){
-      this.isServiceRunning = false;
-      window.clearTimeout(this._refreshTimeout);
-      return this;
-    },
-
-    /**
-     * @abstract
-     * @memberof Flybits.context.ContextPlugin
-     * @function getState
-     * @see Flybits.interface.ContextPlugin.getState
-     */
-    /**
-     * @abstract
-     * @memberof Flybits.context.ContextPlugin
-     * @function isSupported
-     * @see Flybits.interface.ContextPlugin.isSupported
-     */
-
-    /**
-     * Force the immediate retrieval of context state from this `ContextPlugin` once and place store it into the local storage for later reporting.
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @function collectState
-     * @return {external:Promise<undefined,undefined>} Promise that resolves when this `ContextPlugin` has retrieved and stored its current state.
-     */
-    collectState: function(){
-      var def = new Deferred();
-      var plugin = this;
-      var store = this._store;
-      var storeLength = 0;
-
-      store.length().then(function(length){
-        storeLength = length;
-        return plugin.getState();
-      }).then(function(e){
-        return plugin._saveState(e);
-      }).then(function(){
-        plugin.lastCollected = new Date().getTime();
-        if(storeLength >= plugin.maxStoreSize){
-          plugin._validateStoreState();
-        }
-        def.resolve();
-      }).catch(function(e){
-        console.error('>',plugin,e);
-        def.reject();
-      });
-
-      return def.promise;
-    },
-
-    _validateStoreState: function(){
-      var plugin = this;
-      var def = new Deferred();
-      var promises = [];
-      var store = this._store;
-      store.keys().then(function(result){
-        var keys = result;
-        var now = new Date().getTime();
-        var accessCount = keys.length - plugin.maxStoreSize;
-
-        keys.sort(function(a,b){
-          return (+a)-(+b);
-        });
-
-        if(accessCount > 0){
-          for(var i = 0; i < accessCount; i++){
-            promises.push(store.removeItem(keys.shift()));
-          }
-        }
-
-        while(keys.length > 0 && (now - keys[0]) >= plugin.refreshInterval.ONEDAY){
-          promises.push(store.removeItem(keys.shift()));
-        }
-
-        Promise.settle(promises).then(function(){
-          def.resolve();
-        });
-      }).catch(function(){
-        def.reject();
-      });
-
-      return def.promise;
-    },
-    _fetchCollected: function(){
-      var plugin = this;
-      var def = new Deferred();
-      var data = [];
-      var keysToDelete = [];
-      var store = this._store;
-      store.keys().then(function(keys){
-        var assembleData;
-        assembleData = function(){
-          if(keys.length <= 0){
-            def.resolve({
-              data: data,
-              keys: keysToDelete
-            });
-            return;
-          }
-          var curKey = keys.pop();
-          keysToDelete.push(curKey);
-
-          store.getItem(curKey).then(function(item){
-            data.push({
-              timestamp: Math.round((+curKey)/1000),
-              dataTypeID: plugin.TYPEID,
-              value: plugin._toServerFormat(item)
-            });
-          }).catch(function(){}).then(function(){
-            assembleData();
-          });
-        };
-        assembleData();
-      }).catch(function(e){
-        def.reject(e);
-      });
-
-      return def.promise;
-    },
-    _deleteCollected: function(keys){
-      var store = this._store;
-      var def = new Deferred();
-      var deleteData;
-      deleteData = function(){
-        if(keys.length <= 0){
-          def.resolve();
-          return;
-        }
-        var curKey = keys.pop();
-        store.removeItem(curKey).catch(function(){}).then(function(){
-          deleteData();
-        });
-      };
-      deleteData();
-
-      return def.promise;
-    },
-    _saveState: function(value){
-      var time = new Date().getTime();
-      return this._store.setItem(time,value);
-    },
-  };
+  ContextPlugin.prototype = Object.create(BaseObj.prototype);
+  ContextPlugin.prototype.constructor = ContextPlugin;
+  ContextPlugin.prototype.implements('ContextPlugin');
 
   /**
    * @memberof Flybits.context.ContextPlugin
@@ -288,7 +110,182 @@ context.ContextPlugin = (function(){
    */
   ContextPlugin.prototype.TYPEID = ContextPlugin.TYPEID = 'ctx.sdk.generic';
 
-  ContextPlugin.prototype.implements('ContextPlugin');
+  /**
+   * Starts a scheduled service that continuously retrieves context data for this plugin.
+   * @instance
+   * @memberof Flybits.context.ContextPlugin
+   * @function startService
+   * @return {Flybits.context.ContextPlugin} Reference to this context plugin to allow for method chaining.
+   */
+  ContextPlugin.prototype.startService = function () {
+    this.stopService();
+
+    var interval;
+    interval = function (contextPlugin) {
+      contextPlugin.collectState().catch(function (e) { }).then(function () {
+        if (contextPlugin.isServiceRunning) {
+          contextPlugin._refreshTimeout = setTimeout(function () {
+            interval(contextPlugin);
+          }, contextPlugin.refreshDelay);
+        }
+      });
+
+      contextPlugin.isServiceRunning = true;
+    };
+    interval(this);
+
+    return this;
+  };
+    
+  /**
+   * Stops the scheduled service that continuously retrieves context data for this plugin.
+   * @instance
+   * @memberof Flybits.context.ContextPlugin
+   * @function stopService
+   * @return {Flybits.context.ContextPlugin} Reference to this context plugin to allow for method chaining.
+   */
+  ContextPlugin.prototype.stopService = function(){
+    this.isServiceRunning = false;
+    window.clearTimeout(this._refreshTimeout);
+    return this;
+  };
+
+  /**
+   * @abstract
+   * @memberof Flybits.context.ContextPlugin
+   * @function getState
+   * @see Flybits.interface.ContextPlugin.getState
+   */
+  /**
+   * @abstract
+   * @memberof Flybits.context.ContextPlugin
+   * @function isSupported
+   * @see Flybits.interface.ContextPlugin.isSupported
+   */
+
+  /**
+   * Force the immediate retrieval of context state from this `ContextPlugin` once and place store it into the local storage for later reporting.
+   * @instance
+   * @memberof Flybits.context.ContextPlugin
+   * @function collectState
+   * @return {external:Promise<undefined,undefined>} Promise that resolves when this `ContextPlugin` has retrieved and stored its current state.
+   */
+  ContextPlugin.prototype.collectState = function(){
+    var def = new Deferred();
+    var plugin = this;
+    var store = this._store;
+    var storeLength = 0;
+
+    store.length().then(function(length){
+      storeLength = length;
+      return plugin.getState();
+    }).then(function(e){
+      return plugin._saveState(e);
+    }).then(function(){
+      plugin.lastCollected = new Date().getTime();
+      if(storeLength >= plugin.maxStoreSize){
+        plugin._validateStoreState();
+      }
+      def.resolve();
+    }).catch(function(e){
+      console.error('>',plugin,e);
+      def.reject();
+    });
+
+    return def.promise;
+  };
+
+  ContextPlugin.prototype._validateStoreState = function(){
+    var plugin = this;
+    var def = new Deferred();
+    var promises = [];
+    var store = this._store;
+    store.keys().then(function(result){
+      var keys = result;
+      var now = new Date().getTime();
+      var accessCount = keys.length - plugin.maxStoreSize;
+
+      keys.sort(function(a,b){
+        return (+a)-(+b);
+      });
+
+      if(accessCount > 0){
+        for(var i = 0; i < accessCount; i++){
+          promises.push(store.removeItem(keys.shift()));
+        }
+      }
+
+      while(keys.length > 0 && (now - keys[0]) >= plugin.refreshInterval.ONEDAY){
+        promises.push(store.removeItem(keys.shift()));
+      }
+
+      Promise.settle(promises).then(function(){
+        def.resolve();
+      });
+    }).catch(function(){
+      def.reject();
+    });
+
+    return def.promise;
+  };
+  ContextPlugin.prototype._fetchCollected = function(){
+    var plugin = this;
+    var def = new Deferred();
+    var data = [];
+    var keysToDelete = [];
+    var store = this._store;
+    store.keys().then(function(keys){
+      var assembleData;
+      assembleData = function(){
+        if(keys.length <= 0){
+          def.resolve({
+            data: data,
+            keys: keysToDelete
+          });
+          return;
+        }
+        var curKey = keys.pop();
+        keysToDelete.push(curKey);
+
+        store.getItem(curKey).then(function(item){
+          data.push({
+            timestamp: Math.round((+curKey)/1000),
+            dataTypeID: plugin.TYPEID,
+            value: plugin._toServerFormat(item)
+          });
+        }).catch(function(){}).then(function(){
+          assembleData();
+        });
+      };
+      assembleData();
+    }).catch(function(e){
+      def.reject(e);
+    });
+
+    return def.promise;
+  };
+  ContextPlugin.prototype._deleteCollected = function(keys){
+    var store = this._store;
+    var def = new Deferred();
+    var deleteData;
+    deleteData = function(){
+      if(keys.length <= 0){
+        def.resolve();
+        return;
+      }
+      var curKey = keys.pop();
+      store.removeItem(curKey).catch(function(){}).then(function(){
+        deleteData();
+      });
+    };
+    deleteData();
+
+    return def.promise;
+  };
+  ContextPlugin.prototype._saveState = function(value){
+    var time = new Date().getTime();
+    return this._store.setItem(time,value);
+  };
 
   return ContextPlugin;
 })();

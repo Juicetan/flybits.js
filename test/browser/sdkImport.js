@@ -2,6 +2,7 @@ require('isomorphic-fetch');
 var should = require('should');
 var mockery = require('mockery');
 var sinon = require('sinon');
+require('should-sinon');
 
 describe('Browser: SDK',function(){
   var Flybits;

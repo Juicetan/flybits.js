@@ -1,5 +1,9 @@
 // @author Justin Lam
+<<<<<<< HEAD
 // @version feature/analytics:33c8cef
+=======
+// @version feature/abstractedStorage:493ef1a
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
 ;(function(undefined) {
 
 /**
@@ -114,7 +118,11 @@ Flybits.cfg = {
   }
 };
 
+<<<<<<< HEAD
 Flybits.VERSION = "feature/analytics:33c8cef";
+=======
+Flybits.VERSION = "feature/abstractedStorage:493ef1a";
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -165,7 +173,9 @@ var initServerFileConfig = function(filePath){
 var setDeviceID = function(){
   var def = new Flybits.Deferred();
   var storage = Flybits.store.Property;
-  storage.get(Flybits.cfg.store.DEVICEID).then(function(val){
+  storage.ready.then(function(){
+    return storage.get(Flybits.cfg.store.DEVICEID);
+  }).then(function(val){
     if(val){
       Flybits.store.Session.deviceID = val;
       return val;
@@ -395,25 +405,11 @@ Flybits.util.Browser = (function(){
       }
     },
     setCookie: function(key,value,expiryDateObj){
-      var expires;
+      var expires = "";
       if (expiryDateObj) {
         expires = "; expires=" + expiryDateObj.toGMTString();
       }
-      else {
-        expires = "";
-      }
       document.cookie = key + "=" + value + expires + "; path=/";
-    },
-    getFingerprint: function(){
-      var def = new Deferred();
-      var finger = new Fingerprint2().get(function(result, components){
-        if(!result || components.length <= 0){
-          def.reject();
-        }
-        def.resolve(result);
-      });
-
-      return def.promise;
     }
   };
 
@@ -644,6 +640,52 @@ Flybits.interface.Localizable = {
 };
 
 /**
+ * Interface for implementing property stores (key-value pair storage).
+ * @memberof Flybits.interface
+ * @interface
+ */
+Flybits.interface.PropertyStore = {
+  /**
+   * Checks for availability of this property storage type.
+   * @function
+   * @memberof Flybits.interface.PropertyStore
+   * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value if storage type is supported and rejects if it is not.
+   */
+  isSupported: function(){},
+  /**
+   * Retrieves property value based on key.
+   * @function
+   * @memberof Flybits.interface.PropertyStore
+   * @instance
+   * @param key Key by which to fetch the requested property.
+   * @return {external:Promise<string,Flybits.Validation>} Promise that resolves with property store value unless a problem occurs.
+   */
+  getItem: function(key){},
+
+  /**
+   * Converts context value object into the server expected format.
+   * @function
+   * @memberof Flybits.interface.PropertyStore
+   * @instance
+   * @param {string} key Key by which to store provided `value`
+   * @param {string} value Value that is to be stored based on provided `key`
+   * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value if value has been successfully stored based on specified key.
+   */
+  setItem: function(key, value){},
+
+  /**
+   * Completely remove key and value from property store.
+   * @function
+   * @memberof Flybits.interface.PropertyStore
+   * @instance
+   * @param {string} key Key by which to store provided `value`
+   * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value if key and value have been successfully removed based on specified key.
+   */
+  removeItem: function(key){},
+
+};
+
+/**
  * Interface for SDK models that are abstracted from server models.
  * @memberof Flybits.interface
  * @interface
@@ -694,12 +736,31 @@ Flybits.interface.Taggable = {
 };
 
 /**
+ * @classdesc Base class from which all core Flybits classes are extended.
+ * @class
+ */
+var BaseObj = (function(){
+  var BaseObj = function(){};
+  BaseObj.prototype = {
+    implements: function(interfaceName){
+      if(!this._interfaces){
+        this._interfaces = [];
+      }
+      this._interfaces.push(interfaceName);
+    }
+  };
+
+  return BaseObj;
+})();
+
+/**
  * @classdesc Base class from which all core Flybits models are extended.
  * @class
  * @param {Object} serverObj Raw Flybits core model `Object` directly from API.
  */
 var BaseModel = (function(){
   var BaseModel = function(serverObj){
+    BaseObj.call(this);
     /**
      * @instance
      * @memberof BaseModel
@@ -711,16 +772,12 @@ var BaseModel = (function(){
       this.id = serverObj.id;
     }
   };
-  BaseModel.prototype = {
-    reqKeys: {
-      id: 'id'
-    },
-    implements: function(interfaceName){
-      if(!this._interfaces){
-        this._interfaces = [];
-      }
-      this._interfaces.push(interfaceName);
-    }
+
+  BaseModel.prototype = Object.create(BaseObj.prototype);
+  BaseModel.prototype.constructor = BaseModel;
+
+  BaseModel.prototype.reqKeys = {
+    id: 'id'
   };
 
   return BaseModel;
@@ -1825,6 +1882,7 @@ Flybits.ZoneMomentInstance = (function(){
   return ZoneMomentInstance;
 })();
 
+<<<<<<< HEAD
 Flybits.store.Property.browser = (function(){
   var Deferred = Flybits.Deferred;
   var storage = null;
@@ -1991,6 +2049,8 @@ Flybits.store.Property.server = (function(){
   return Property;
 })();
 
+=======
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
 /**
  * This is a utility class, do not use constructor.
  * @class
@@ -2092,542 +2152,296 @@ Flybits.store.Session = (function(){
   return Session;
 })();
 
-/**
- * @classdesc Abstract base class from which all context plugins are extended.
- * @memberof Flybits.context
- * @implements {Flybits.interface.ContextPlugin}
- * @abstract
- * @class ContextPlugin
- * @param {Object} opts Configuration object to override default configuration
- * @param {number} opts.refreshDelay {@link Flybits.context.ContextPlugin#refreshDelay}
- */
-context.ContextPlugin = (function(){
+var CookieStore = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+  var BrowserUtil = Flybits.util.Browser;
+
+  var CookieStore = function(){
+    BaseObj.call(this);
+  };
+
+  CookieStore.prototype = Object.create(BaseObj.prototype);
+  CookieStore.prototype.constructor = CookieStore;
+  CookieStore.prototype.implements('PropertyStore');
+
+  CookieStore.prototype.isSupported = CookieStore.isSupported = function(){
+    var def = new Deferred();
+    var validation = new Validation();
+    var support = document && 'cookie' in document;
+    if(support){
+      try{
+        BrowserUtil.setCookie('flbstoresupport','true');
+        BrowserUtil.setCookie('flbstoresupport','true',new Date(0));
+        def.resolve();
+      } catch(e){
+        def.reject(validation.addError('Storage not supported','Access error:' + e,{
+          context: 'cookie'
+        }));
+      }
+    } else{
+      def.reject(validation.addError('Storage not supported','Missing reference in namespace.',{
+        context: 'cookie'
+      }));
+    }
+
+    return def.promise;
+  };
+
+  CookieStore.prototype.getItem = function(key){
+    return Promise.resolve(BrowserUtil.getCookie(key));
+  };
+  CookieStore.prototype.setItem = function(key, value){
+    BrowserUtil.setCookie(key, value);
+    return Promise.resolve();
+  };
+  CookieStore.prototype.removeItem = function(key){
+    BrowserUtil.setCookie(key, '', new Date(0));
+    return Promise.resolve();
+  };
+
+  return CookieStore;
+
+})();
+var ForageStore = (function(){
   var Deferred = Flybits.Deferred;
   var Validation = Flybits.Validation;
 
-  var ContextPlugin = function(opts){
-    if(this.constructor.name === 'Object'){
-      throw new Error('Abstract classes cannot be instantiated');
-    }
-
-    this._refreshTimeout = null;
-
-    /**
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @member {number} [refreshDelay=60000] Delay in milliseconds before the next interval of context refreshing begins for this particular plugin.  Note that the timer starts after the previous interval's context refresh has completed.
-     */
-    this.refreshDelay = opts && opts.refreshDelay?opts.refreshDelay:this.refreshInterval.ONEMINUTE;
-
-    /**
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @member {number} [maxStoreEntries=100] Maximum amount of entries this context type can store locally before old entries are flushed from the local store.
-     */
-    this.maxStoreSize = opts && opts.maxStoreSize?opts.maxStoreSize:80;
-
-    /**
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @member {number} [maxStoreAge=86400000] Maximum age of an entry of this context type before it is flushed from the local store.  Default maximum age is 1 day old.
-     */
-    this.maxStoreAge = opts && opts.maxStoreAge?opts.maxStoreAge:86400000;
-
-    /**
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @member {boolean} isServiceRunning flag indicating whether or not a context retrieval service is running for this context plugin.
-     */
-    this.isServiceRunning = false;
-
-    /**
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @member {number} lastCollected Timestamp of the last context state retrieval and local storage;
-     */
-    this.lastCollected = -1;
-
-    if(window.localforage){
-      this._store = localforage.createInstance({
-        name: this.TYPEID
-      });
-    } else {
-      console.error('> WARNING ('+this.TYPEID+'): `localforage` dependency not found. Reverting to temporary in memory storage.')
-      this._store = {
-        contents: {},
-        keys: function(){
-          return Promise.resolve(Object.keys(this.contents));
-        },
-        removeItem: function(key){
-          delete this.contents[key];
-          return Promise.resolve();
-        },
-        setItem: function(key,item){
-          this.contents[key] = item;
-          return Promise.resolve(item);
-        },
-        getItem: function(key){
-          var result = this.contents[key]?this.contents[key]:null;
-          return Promise.resolve(result);
-        },
-        length: function(){
-          return Promise.resolve(Object.keys(this.contents).length);
-        }
-      }
-    }
+  var ForageStore = function(storeName){
+    BaseObj.call(this);
+    this.store = localforage.createInstance({
+      name: storeName
+    });
   };
-  ContextPlugin.prototype = {
-    implements: function(interfaceName){
-      if(!this._interfaces){
-        this._interfaces = [];
-      }
-      this._interfaces.push(interfaceName);
-    },
-    /**
-     * Starts a scheduled service that continuously retrieves context data for this plugin.
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @function startService
-     * @return {Flybits.context.ContextPlugin} Reference to this context plugin to allow for method chaining.
-     */
-    startService: function(){
-      this.stopService();
 
-      var interval;
-      interval = function(contextPlugin){
-        contextPlugin.collectState().catch(function(e){}).then(function(){
-          if(contextPlugin.isServiceRunning){
-            contextPlugin._refreshTimeout = setTimeout(function(){
-              interval(contextPlugin);
-            },contextPlugin.refreshDelay);
-          }
-        });
+  ForageStore.prototype = Object.create(BaseObj.prototype);
+  ForageStore.prototype.constructor = ForageStore;
+  ForageStore.prototype.implements('PropertyStore');
 
-        contextPlugin.isServiceRunning = true;
-      };
-      interval(this);
-
-      return this;
-    },
-    /**
-     * Stops the scheduled service that continuously retrieves context data for this plugin.
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @function stopService
-     * @return {Flybits.context.ContextPlugin} Reference to this context plugin to allow for method chaining.
-     */
-    stopService: function(){
-      this.isServiceRunning = false;
-      window.clearTimeout(this._refreshTimeout);
-      return this;
-    },
-
-    /**
-     * @abstract
-     * @memberof Flybits.context.ContextPlugin
-     * @function getState
-     * @see Flybits.interface.ContextPlugin.getState
-     */
-    /**
-     * @abstract
-     * @memberof Flybits.context.ContextPlugin
-     * @function isSupported
-     * @see Flybits.interface.ContextPlugin.isSupported
-     */
-
-    /**
-     * Force the immediate retrieval of context state from this `ContextPlugin` once and place store it into the local storage for later reporting.
-     * @instance
-     * @memberof Flybits.context.ContextPlugin
-     * @function collectState
-     * @return {external:Promise<undefined,undefined>} Promise that resolves when this `ContextPlugin` has retrieved and stored its current state.
-     */
-    collectState: function(){
-      var def = new Deferred();
-      var plugin = this;
-      var store = this._store;
-      var storeLength = 0;
-
-      store.length().then(function(length){
-        storeLength = length;
-        return plugin.getState();
-      }).then(function(e){
-        return plugin._saveState(e);
+  ForageStore.prototype.isSupported = ForageStore.isSupported = function(){
+    var def = new Deferred();
+    var validation = new Validation();
+    var support = window && window.localforage;
+    if(support){
+      localforage.setItem('flbstoresupport',true).then(function(){
+        return localforage.removeItem('flbstoresupport');
       }).then(function(){
-        plugin.lastCollected = new Date().getTime();
-        if(storeLength >= plugin.maxStoreSize){
-          plugin._validateStoreState();
-        }
         def.resolve();
       }).catch(function(e){
-        console.error('>',plugin,e);
-        def.reject();
+        def.reject(validation.addError('Storage not supported','Access error:' + e,{
+          context: 'localforage'
+        }));
       });
+    } else{
+      def.reject(validation.addError('Storage not supported','No library detected',{
+        context: 'localforage'
+      }));
+    }
 
-      return def.promise;
-    },
+    return def.promise;
+  };
 
-    _validateStoreState: function(){
-      var plugin = this;
-      var def = new Deferred();
-      var promises = [];
-      var store = this._store;
-      store.keys().then(function(result){
-        var keys = result;
-        var now = new Date().getTime();
-        var accessCount = keys.length - plugin.maxStoreSize;
+  ForageStore.prototype.getItem = function(key){
+    return this.store.getItem(key);
+  };
+  ForageStore.prototype.setItem = function(key, value){
+    return this.store.setItem(key, value);
+  };
+  ForageStore.prototype.removeItem = function(key){
+    return this.store.removeItem(key);
+  };
 
-        keys.sort(function(a,b){
-          return (+a)-(+b);
-        });
+  return ForageStore;
 
-        if(accessCount > 0){
-          for(var i = 0; i < accessCount; i++){
-            promises.push(store.removeItem(keys.shift()));
-          }
-        }
+})();
+var LocalStorageStore = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
 
-        while(keys.length > 0 && (now - keys[0]) >= plugin.refreshInterval.ONEDAY){
-          promises.push(store.removeItem(keys.shift()));
-        }
+  var LocalStorageStore = function(){
+    BaseObj.call(this);
+    this.store = localStorage;
+  };
 
-        Promise.settle(promises).then(function(){
-          def.resolve();
-        });
+  LocalStorageStore.prototype = Object.create(BaseObj.prototype);
+  LocalStorageStore.prototype.constructor = LocalStorageStore;
+  LocalStorageStore.prototype.implements('PropertyStore');
+
+  LocalStorageStore.prototype.isSupported = LocalStorageStore.isSupported = function(){
+    var def = new Deferred();
+    var validation = new Validation();
+    var support = window && window.localStorage;
+    if(support){
+      try {
+        localStorage.setItem('flbstoresupport', true);
+        localStorage.removeItem('flbstoresupport');
+        def.resolve()
+      } catch (e) {
+        def.reject(validation.addError('Storage not supported','Access error:' + e,{
+          context: 'localStorage'
+        }));
+      }
+    } else{
+      def.reject(validation.addError('Storage not supported','Missing reference in namespace.',{
+        context: 'localStorage'
+      }));
+    }
+
+    return def.promise;
+  };
+
+  LocalStorageStore.prototype.getItem = function(key){
+    return Promise.resolve(this.store.getItem(key));
+  };
+  LocalStorageStore.prototype.setItem = function(key, value){
+    this.store.setItem(key, value);
+    return Promise.resolve();
+  };
+  LocalStorageStore.prototype.removeItem = function(key){
+    this.store.removeItem(key);
+    return Promise.resolve();
+  };
+
+  return LocalStorageStore;
+
+})();
+var MemoryStore = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+
+  var MemoryStore = function(){
+    BaseObj.call(this);
+    this.store = {};
+  };
+
+  MemoryStore.prototype = Object.create(BaseObj.prototype);
+  MemoryStore.prototype.constructor = MemoryStore;
+  MemoryStore.prototype.implements('PropertyStore');
+
+  MemoryStore.prototype.isSupported = MemoryStore.isSupported = function(){
+    return Promise.resolve();
+  };
+
+  MemoryStore.prototype.getItem = function(key){
+    return Promise.resolve(this.store[key]);
+  };
+  MemoryStore.prototype.setItem = function(key, value){
+    this.store[key] = value;
+    return Promise.resolve();
+  };
+  MemoryStore.prototype.removeItem = function(key){
+    delete this.store[key];
+    return Promise.resolve();
+  };
+
+  return MemoryStore;
+
+})();
+Flybits.store.Property.browser = (function(){
+  var Deferred = Flybits.Deferred;
+  var _ready = new Deferred();
+
+  var availableStorage = [ForageStore,LocalStorageStore,CookieStore,MemoryStore];
+  var resolveStorageEngine = function(){
+    var def = new Deferred();
+    var checkStorageEngine = function(){
+      if(availableStorage.length < 1){
+        def.reject(new Validation().addError('No supported property storage engines'))
+      }
+      var CurEngine = availableStorage.shift();
+      CurEngine.isSupported().then(function(){
+        def.resolve(new CurEngine(Flybits.cfg.store.SDKPROPS));
       }).catch(function(){
-        def.reject();
+        checkStorageEngine();
       });
+    };
+    checkStorageEngine();
 
-      return def.promise;
+    return def.promise;
+  };
+
+  var Property = {
+    ready: _ready.promise,
+    init: function(){
+      var property = this;
+      var engineInit = resolveStorageEngine();
+      engineInit.then(function(engine){
+        property.storageEngine = engine;
+        _ready.resolve();
+      });
+      return engineInit;
     },
-    _fetchCollected: function(){
-      var plugin = this;
-      var def = new Deferred();
-      var data = [];
-      var keysToDelete = [];
-      var store = this._store;
-      store.keys().then(function(keys){
-        var assembleData;
-        assembleData = function(){
-          if(keys.length <= 0){
-            def.resolve({
-              data: data,
-              keys: keysToDelete
-            });
-            return;
-          }
-          var curKey = keys.pop();
-          keysToDelete.push(curKey);
+    remove: function(key){
+      return this.storageEngine.removeItem(key);
+    },
+    set: function(key, value){
+      if(!value){
+        return this.remove(key);
+      }
+      return this.storageEngine.setItem(key, value);
+    },
+    get: function(key){
+      return this.storageEngine.getItem(key);
+    }
+  };
 
-          store.getItem(curKey).then(function(item){
-            data.push({
-              timestamp: Math.round((+curKey)/1000),
-              dataTypeID: plugin.TYPEID,
-              value: plugin._toServerFormat(item)
-            });
-          }).catch(function(){}).then(function(){
-            assembleData();
-          });
-        };
-        assembleData();
+  return Property;
+})();
+
+Flybits.store.Property.server = (function(){
+  var Deferred = Flybits.Deferred;
+  var _ready = new Deferred();
+  var storage;
+
+  var Property = {
+    ready: _ready.promise,
+    init: function(){
+      storage = Persistence.create({
+        dir: Flybits.cfg.store.RESOURCEPATH
+      });
+      storage.initSync();
+      _ready.resolve();
+    },
+    remove: function(key){
+      var def = new Deferred();
+      var store = this;
+
+      storage.removeItem(key).then(function(){
+        def.resolve(store);
       }).catch(function(e){
         def.reject(e);
       });
 
       return def.promise;
     },
-    _deleteCollected: function(keys){
-      var store = this._store;
+    set: function(key,value){
       var def = new Deferred();
-      var deleteData;
-      deleteData = function(){
-        if(keys.length <= 0){
-          def.resolve();
-          return;
-        }
-        var curKey = keys.pop();
-        store.removeItem(curKey).catch(function(){}).then(function(){
-          deleteData();
+      var store = this;
+      if(!value){
+        return this.remove(key);
+      } else{
+        storage.setItem(key,value).then(function(){
+          def.resolve(store);
+        }).catch(function(e){
+          def.reject(e)
         });
-      };
-      deleteData();
-
+      }
       return def.promise;
     },
-    _saveState: function(value){
-      var time = new Date().getTime();
-      return this._store.setItem(time,value);
-    },
-  };
+    get: function(key){
+      var def = new Deferred();
 
-  /**
-   * @memberof Flybits.context.ContextPlugin
-   * @member {Object} refreshInterval Common context refresh delays.
-   * @constant
-   * @property {number} ONETIME Indicates the value of the context should be fetched only a single time and should not be refreshed on a continuous interval.
-   * @property {number} THIRTYSECONDS Common refresh delay of 30 seconds.
-   * @property {number} ONEMINUTE Common refresh delay of 1 minute.
-   * @property {number} ONEHOUR Common refresh delay of 1 hour.
-   */
-  ContextPlugin.prototype.refreshInterval = ContextPlugin.refreshInterval = {};
-  ContextPlugin.prototype.refreshInterval.ONETIME = ContextPlugin.refreshInterval.ONETIME = -42;
-  ContextPlugin.prototype.refreshInterval.THIRTYSECONDS = ContextPlugin.refreshInterval.THIRTYSECONDS = 1000*30;
-  ContextPlugin.prototype.refreshInterval.ONEMINUTE = ContextPlugin.refreshInterval.ONEMINUTE = 1000*60*1;
-  ContextPlugin.prototype.refreshInterval.ONEHOUR = ContextPlugin.refreshInterval.ONEHOUR = 1000*60*60;
-  ContextPlugin.prototype.refreshInterval.ONEDAY = ContextPlugin.refreshInterval.ONEDAY = 1000*60*60*24;
-
-  /**
-   * @memberof Flybits.context.ContextPlugin
-   * @member {string} TYPEID String descriptor to uniquely identify context data type on the Flybits context gateway.
-   */
-  ContextPlugin.prototype.TYPEID = ContextPlugin.TYPEID = 'ctx.sdk.generic';
-
-  ContextPlugin.prototype.implements('ContextPlugin');
-
-  return ContextPlugin;
-})();
-
-/**
- * @class Connectivity
- * @classdesc Utility class to retrieve state of browser connectivity.
- * @extends Flybits.context.ContextPlugin
- * @memberof Flybits.context
- * @param {Flybits.context.Connectivity.Options} opts Configuration object to override default configuration
- */
-context.Connectivity = (function(){
-  /**
-   * @typedef ConnectionState
-   * @memberof Flybits.context.Connectivity
-   * @type Object
-   * @property {number} state Numerical state of connectivity. 0 for disconnected and 1 for connected.
-   */
-   /**
-    * @typedef Options
-    * @memberof Flybits.context.Connectivity
-    * @type Object
-    * @property {boolean} hardCheck=false Flag to indicate whether or not a HTTP network request is to be used to determine network connectivity as opposed to using browser's `navigator.onLine` property. If the browser does not support `navigator.onLine` a network request based connectivity check will be performed regardless of the state of this flag.
-    * @property {number} refreshDelay {@link Flybits.context.ContextPlugin#refreshDelay}
-    */
-  var Deferred = Flybits.Deferred;
-  var ObjUtil = Flybits.util.Obj;
-
-  var Connectivity = function(opts){
-    context.ContextPlugin.call(this,opts);
-    if(opts){
-      this.opts = ObjUtil.extend({},this.opts);
-      ObjUtil.extend(this.opts,opts);
-    }
-  };
-
-  Connectivity.prototype = Object.create(context.ContextPlugin.prototype);
-  Connectivity.prototype.constructor = Connectivity;
-
-  /**
-   * @memberof Flybits.context.Connectivity
-   * @member {string} TYPEID String descriptor to uniquely identify context data type on the Flybits context gateway.
-   */
-  Connectivity.prototype.TYPEID = Connectivity.TYPEID = 'ctx.sdk.network';
-
-  /**
-   * Check to see if Connectivity retrieval is available on the current browser.
-   * @memberof Flybits.context.Connectivity
-   * @function isSupported
-   * @override
-   * @returns {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value.  Promise rejects with a {@link Flybits.Validation} object with errors.
-   */
-  Connectivity.isSupported = Connectivity.prototype.isSupported = function(){
-    var def = new Deferred();
-    def.resolve();
-
-    return def.promise;
-  };
-
-  /**
-   * Retrieve browser's current connectivity status.
-   * @memberof Flybits.context.Connectivity
-   * @function getState
-   * @override
-   * @returns {external:Promise<Flybits.context.Connectivity.ConnectionState,Flybits.Validation>} Promise that resolves with {@link Flybits.context.Connectivity.ConnectionState|ConnectionState} object.  Promise rejects with a {@link Flybits.Validation} object with errors.
-   */
-  Connectivity.getState = Connectivity.prototype.getState = function(){
-    var def = new Deferred();
-    var plugin = this;
-    if('onLine' in navigator && !this.opts.hardCheck){
-      def.resolve({
-        state: navigator.onLine?plugin.state.CONNECTED:plugin.state.DISCONNECTED
-      });
-    } else{
-      fetch(Flybits.cfg.HOST+"/ping").then(function(resp){
-        def.resolve({
-          state: plugin.state.CONNECTED
-        });
+      storage.getItem(key).then(function(val){
+        def.resolve(val);
       }).catch(function(e){
-        def.resolve({
-          state: plugin.state.DISCONNECTED
-        });
+        def.reject(e)
       });
-    }
 
-    return def.promise;
-  };
-
-  /**
-   * Converts context value object into the server expected format.
-   * @function
-   * @memberof Flybits.context.Connectivity
-   * @function _toServerFormat
-   * @param {Object} contextValue
-   * @return {Object} Expected server format of context value.
-   */
-  Connectivity._toServerFormat = Connectivity.prototype._toServerFormat = function(contextValue){
-    return {
-      connectionType: contextValue.state
-    };
-  };
-
-  /**
-   * @memberof Flybits.context.Connectivity
-   * @member {Object} state Connection state constants.
-   * @constant
-   * @property {number} DISCONNECTED Indicates the state of being disconnected.
-   * @property {number} CONNECTED Indicates the state of being connected.
-   */
-  Connectivity.state = Connectivity.prototype.state = {};
-  Connectivity.state.DISCONNECTED = Connectivity.prototype.state.DISCONNECTED = -1;
-  Connectivity.state.CONNECTED = Connectivity.prototype.state.CONNECTED = -99;
-
-  /**
-   * @memberof Flybits.context.Connectivity
-   * @member opts
-   * @type {Flybits.context.Connectivity.Options}
-   */
-  Connectivity.opts = Connectivity.prototype.opts = {
-    hardCheck: false
-  };
-
-  return Connectivity;
-})();
-
-/**
- * @class Location
- * @classdesc Utility class to retrieve browser location.
- * @extends Flybits.context.ContextPlugin
- * @memberof Flybits.context
- * @param {Flybits.context.Location.Options} opts Configuration object to override default configuration
- */
-context.Location = (function(){
-  /**
-   * @typedef Geoposition
-   * @memberof Flybits.context.Location
-   * @type Object
-   * @property {Object} coords
-   * @property {number} coords.latitude
-   * @property {number} coords.longitude
-   * @property {number} timestamp
-   */
-   /**
-    * @typedef Options
-    * @memberof Flybits.context.Location
-    * @type Object
-    * @property {number} maximumAge=1000*60*20
-    * @property {number} refreshDelay {@link Flybits.context.ContextPlugin#refreshDelay}
-    */
-  var Deferred = Flybits.Deferred;
-  var ObjUtil = Flybits.util.Obj;
-
-  var Location = function(opts){
-    context.ContextPlugin.call(this,opts);
-    if(opts){
-      this.opts = ObjUtil.extend({},this.opts);
-      ObjUtil.extend(this.opts,opts);
+      return def.promise;
     }
   };
 
-  Location.prototype = Object.create(context.ContextPlugin.prototype);
-  Location.prototype.constructor = Location;
-
-  /**
-   * @memberof Flybits.context.Location
-   * @member {string} TYPEID String descriptor to uniquely identify context data type on the Flybits context gateway.
-   */
-  Location.prototype.TYPEID = Location.TYPEID = 'ctx.sdk.location';
-
-  /**
-   * Check to see if Location retrieval is available on the current browser.
-   * @memberof Flybits.context.Location
-   * @function isSupported
-   * @override
-   * @returns {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value.  Promise rejects with a {@link Flybits.Validation} object with errors.  Possible errors can include the lack of support on webview/browser or the User explicitly denying Location retrieval.
-   */
-  Location.isSupported = Location.prototype.isSupported = function(){
-    var def = new Deferred();
-
-    if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(function(pos){
-        def.resolve();
-      },function(err){
-        console.error('>',err);
-        def.reject(new Flybits.Validation().addError('Location Sensing Not Supported',err.message?err.message:"User denied"));
-      });
-    } else{
-      def.reject(new Flybits.Validation().addError('Location Sensing Not Supported',"Device GeoLocation API not found."));
-    }
-
-    return def.promise;
-  };
-
-  /**
-   * Retrieve browser's current location.
-   * @memberof Flybits.context.Location
-   * @function getState
-   * @override
-   * @returns {external:Promise<Flybits.context.Location.Geoposition,Flybits.Validation>} Promise that resolves with browser's {@link Flybits.context.Location.Geoposition|Geoposition} object.  Promise rejects with a {@link Flybits.Validation} object with errors.  Possible errors can include the lack of support on webview/browser or the User explicitly denying Location retrieval.
-   */
-  Location.getState = Location.prototype.getState = function(){
-    var def = new Deferred();
-
-    navigator.geolocation.getCurrentPosition(function(pos){
-      def.resolve({
-        coords:{
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy
-        },
-        timestamp: pos.timestamp
-      });
-    },function(err){
-      console.error('>',err);
-      def.reject(new Flybits.Validation().addError('Location could not be resolved'));
-    },this.opts);
-
-    return def.promise;
-  };
-
-  /**
-   * Converts context value object into the server expected format.
-   * @function
-   * @memberof Flybits.context.Location
-   * @function _toServerFormat
-   * @param {Object} contextValue
-   * @return {Object} Expected server format of context value.
-   */
-  Location._toServerFormat = Location.prototype._toServerFormat = function(contextValue){
-    return {
-      lat: contextValue.coords.latitude,
-      lng: contextValue.coords.longitude
-    };
-  };
-
-  /**
-   * @memberof Flybits.context.Location
-   * @member opts
-   * @type {Flybits.context.Location.Options}
-   */
-  Location.opts = Location.prototype.opts = {
-    maximumAge: 1000 * 60 * 20
-  };
-
-  return Location;
+  return Property;
 })();
 
 /**
@@ -2907,6 +2721,7 @@ context.Manager = (function(){
 })();
 
 /**
+<<<<<<< HEAD
  * @classdesc Model to represent an analytics event to be logged.
  * @class Event
  * @memberof Flybits.analytics
@@ -3413,6 +3228,69 @@ analytics.BrowserStore = (function(){
       });
     } else {
       console.error('> WARNING ('+this.STOREID+'): `localforage` dependency not found. Reverting to temporary in memory storage.')
+=======
+ * @classdesc Abstract base class from which all context plugins are extended.
+ * @memberof Flybits.context
+ * @implements {Flybits.interface.ContextPlugin}
+ * @abstract
+ * @class ContextPlugin
+ * @param {Object} opts Configuration object to override default configuration
+ * @param {number} opts.refreshDelay {@link Flybits.context.ContextPlugin#refreshDelay}
+ */
+context.ContextPlugin = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+
+  var ContextPlugin = function(opts){
+    if(this.constructor.name === 'Object'){
+      throw new Error('Abstract classes cannot be instantiated');
+    }
+    BaseObj.call(this);
+
+    this._refreshTimeout = null;
+
+    /**
+     * @instance
+     * @memberof Flybits.context.ContextPlugin
+     * @member {number} [refreshDelay=60000] Delay in milliseconds before the next interval of context refreshing begins for this particular plugin.  Note that the timer starts after the previous interval's context refresh has completed.
+     */
+    this.refreshDelay = opts && opts.refreshDelay?opts.refreshDelay:this.refreshInterval.ONEMINUTE;
+
+    /**
+     * @instance
+     * @memberof Flybits.context.ContextPlugin
+     * @member {number} [maxStoreEntries=100] Maximum amount of entries this context type can store locally before old entries are flushed from the local store.
+     */
+    this.maxStoreSize = opts && opts.maxStoreSize?opts.maxStoreSize:80;
+
+    /**
+     * @instance
+     * @memberof Flybits.context.ContextPlugin
+     * @member {number} [maxStoreAge=86400000] Maximum age of an entry of this context type before it is flushed from the local store.  Default maximum age is 1 day old.
+     */
+    this.maxStoreAge = opts && opts.maxStoreAge?opts.maxStoreAge:86400000;
+
+    /**
+     * @instance
+     * @memberof Flybits.context.ContextPlugin
+     * @member {boolean} isServiceRunning flag indicating whether or not a context retrieval service is running for this context plugin.
+     */
+    this.isServiceRunning = false;
+
+    /**
+     * @instance
+     * @memberof Flybits.context.ContextPlugin
+     * @member {number} lastCollected Timestamp of the last context state retrieval and local storage;
+     */
+    this.lastCollected = -1;
+
+    if(window.localforage){
+      this._store = localforage.createInstance({
+        name: this.TYPEID
+      });
+    } else {
+      console.error('> WARNING ('+this.TYPEID+'): `localforage` dependency not found. Reverting to temporary in memory storage.')
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
       this._store = {
         contents: {},
         keys: function(){
@@ -3437,6 +3315,7 @@ analytics.BrowserStore = (function(){
     }
   };
 
+<<<<<<< HEAD
   BrowserStore.prototype = Object.create(analytics.AnalyticsStore.prototype);
   BrowserStore.prototype.constructor = BrowserStore;
 
@@ -3472,11 +3351,120 @@ analytics.BrowserStore = (function(){
       }
     }).catch(function(e){
       def.reject(e);
+=======
+  ContextPlugin.prototype = Object.create(BaseObj.prototype);
+  ContextPlugin.prototype.constructor = ContextPlugin;
+  ContextPlugin.prototype.implements('ContextPlugin');
+
+  /**
+   * @memberof Flybits.context.ContextPlugin
+   * @member {Object} refreshInterval Common context refresh delays.
+   * @constant
+   * @property {number} ONETIME Indicates the value of the context should be fetched only a single time and should not be refreshed on a continuous interval.
+   * @property {number} THIRTYSECONDS Common refresh delay of 30 seconds.
+   * @property {number} ONEMINUTE Common refresh delay of 1 minute.
+   * @property {number} ONEHOUR Common refresh delay of 1 hour.
+   */
+  ContextPlugin.prototype.refreshInterval = ContextPlugin.refreshInterval = {};
+  ContextPlugin.prototype.refreshInterval.ONETIME = ContextPlugin.refreshInterval.ONETIME = -42;
+  ContextPlugin.prototype.refreshInterval.THIRTYSECONDS = ContextPlugin.refreshInterval.THIRTYSECONDS = 1000*30;
+  ContextPlugin.prototype.refreshInterval.ONEMINUTE = ContextPlugin.refreshInterval.ONEMINUTE = 1000*60*1;
+  ContextPlugin.prototype.refreshInterval.ONEHOUR = ContextPlugin.refreshInterval.ONEHOUR = 1000*60*60;
+  ContextPlugin.prototype.refreshInterval.ONEDAY = ContextPlugin.refreshInterval.ONEDAY = 1000*60*60*24;
+
+  /**
+   * @memberof Flybits.context.ContextPlugin
+   * @member {string} TYPEID String descriptor to uniquely identify context data type on the Flybits context gateway.
+   */
+  ContextPlugin.prototype.TYPEID = ContextPlugin.TYPEID = 'ctx.sdk.generic';
+
+  /**
+   * Starts a scheduled service that continuously retrieves context data for this plugin.
+   * @instance
+   * @memberof Flybits.context.ContextPlugin
+   * @function startService
+   * @return {Flybits.context.ContextPlugin} Reference to this context plugin to allow for method chaining.
+   */
+  ContextPlugin.prototype.startService = function () {
+    this.stopService();
+
+    var interval;
+    interval = function (contextPlugin) {
+      contextPlugin.collectState().catch(function (e) { }).then(function () {
+        if (contextPlugin.isServiceRunning) {
+          contextPlugin._refreshTimeout = setTimeout(function () {
+            interval(contextPlugin);
+          }, contextPlugin.refreshDelay);
+        }
+      });
+
+      contextPlugin.isServiceRunning = true;
+    };
+    interval(this);
+
+    return this;
+  };
+    
+  /**
+   * Stops the scheduled service that continuously retrieves context data for this plugin.
+   * @instance
+   * @memberof Flybits.context.ContextPlugin
+   * @function stopService
+   * @return {Flybits.context.ContextPlugin} Reference to this context plugin to allow for method chaining.
+   */
+  ContextPlugin.prototype.stopService = function(){
+    this.isServiceRunning = false;
+    window.clearTimeout(this._refreshTimeout);
+    return this;
+  };
+
+  /**
+   * @abstract
+   * @memberof Flybits.context.ContextPlugin
+   * @function getState
+   * @see Flybits.interface.ContextPlugin.getState
+   */
+  /**
+   * @abstract
+   * @memberof Flybits.context.ContextPlugin
+   * @function isSupported
+   * @see Flybits.interface.ContextPlugin.isSupported
+   */
+
+  /**
+   * Force the immediate retrieval of context state from this `ContextPlugin` once and place store it into the local storage for later reporting.
+   * @instance
+   * @memberof Flybits.context.ContextPlugin
+   * @function collectState
+   * @return {external:Promise<undefined,undefined>} Promise that resolves when this `ContextPlugin` has retrieved and stored its current state.
+   */
+  ContextPlugin.prototype.collectState = function(){
+    var def = new Deferred();
+    var plugin = this;
+    var store = this._store;
+    var storeLength = 0;
+
+    store.length().then(function(length){
+      storeLength = length;
+      return plugin.getState();
+    }).then(function(e){
+      return plugin._saveState(e);
+    }).then(function(){
+      plugin.lastCollected = new Date().getTime();
+      if(storeLength >= plugin.maxStoreSize){
+        plugin._validateStoreState();
+      }
+      def.resolve();
+    }).catch(function(e){
+      console.error('>',plugin,e);
+      def.reject();
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
     });
 
     return def.promise;
   };
 
+<<<<<<< HEAD
   BrowserStore.prototype.getEvent = function(tmpID){
     var def = new Deferred();
     this._store.getItem(tmpID).then(function(res){
@@ -3487,23 +3475,100 @@ analytics.BrowserStore = (function(){
       } else{
         def.resolve();
       }
+=======
+  ContextPlugin.prototype._validateStoreState = function(){
+    var plugin = this;
+    var def = new Deferred();
+    var promises = [];
+    var store = this._store;
+    store.keys().then(function(result){
+      var keys = result;
+      var now = new Date().getTime();
+      var accessCount = keys.length - plugin.maxStoreSize;
+
+      keys.sort(function(a,b){
+        return (+a)-(+b);
+      });
+
+      if(accessCount > 0){
+        for(var i = 0; i < accessCount; i++){
+          promises.push(store.removeItem(keys.shift()));
+        }
+      }
+
+      while(keys.length > 0 && (now - keys[0]) >= plugin.refreshInterval.ONEDAY){
+        promises.push(store.removeItem(keys.shift()));
+      }
+
+      Promise.settle(promises).then(function(){
+        def.resolve();
+      });
+    }).catch(function(){
+      def.reject();
+    });
+
+    return def.promise;
+  };
+  ContextPlugin.prototype._fetchCollected = function(){
+    var plugin = this;
+    var def = new Deferred();
+    var data = [];
+    var keysToDelete = [];
+    var store = this._store;
+    store.keys().then(function(keys){
+      var assembleData;
+      assembleData = function(){
+        if(keys.length <= 0){
+          def.resolve({
+            data: data,
+            keys: keysToDelete
+          });
+          return;
+        }
+        var curKey = keys.pop();
+        keysToDelete.push(curKey);
+
+        store.getItem(curKey).then(function(item){
+          data.push({
+            timestamp: Math.round((+curKey)/1000),
+            dataTypeID: plugin.TYPEID,
+            value: plugin._toServerFormat(item)
+          });
+        }).catch(function(){}).then(function(){
+          assembleData();
+        });
+      };
+      assembleData();
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
     }).catch(function(e){
       def.reject(e);
     });
 
     return def.promise;
   };
+<<<<<<< HEAD
 
   BrowserStore.prototype.clearEvents = function(tmpIDs){
+=======
+  ContextPlugin.prototype._deleteCollected = function(keys){
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
     var store = this._store;
     var def = new Deferred();
     var deleteData;
     deleteData = function(){
+<<<<<<< HEAD
       if(tmpIDs.length <= 0){
         def.resolve();
         return;
       }
       var curKey = tmpIDs.pop();
+=======
+      if(keys.length <= 0){
+        def.resolve();
+        return;
+      }
+      var curKey = keys.pop();
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
       store.removeItem(curKey).catch(function(){}).then(function(){
         deleteData();
       });
@@ -3512,6 +3577,7 @@ analytics.BrowserStore = (function(){
 
     return def.promise;
   };
+<<<<<<< HEAD
 
   BrowserStore.prototype.clearAllEvents = function(){
     return this._store.clear();
@@ -3530,10 +3596,72 @@ analytics.BrowserStore = (function(){
     }).catch(function(e){
       def.reject(e);
     });
+=======
+  ContextPlugin.prototype._saveState = function(value){
+    var time = new Date().getTime();
+    return this._store.setItem(time,value);
+  };
+
+  return ContextPlugin;
+})();
+
+/**
+ * @class Connectivity
+ * @classdesc Utility class to retrieve state of browser connectivity.
+ * @extends Flybits.context.ContextPlugin
+ * @memberof Flybits.context
+ * @param {Flybits.context.Connectivity.Options} opts Configuration object to override default configuration
+ */
+context.Connectivity = (function(){
+  /**
+   * @typedef ConnectionState
+   * @memberof Flybits.context.Connectivity
+   * @type Object
+   * @property {number} state Numerical state of connectivity. 0 for disconnected and 1 for connected.
+   */
+   /**
+    * @typedef Options
+    * @memberof Flybits.context.Connectivity
+    * @type Object
+    * @property {boolean} hardCheck=false Flag to indicate whether or not a HTTP network request is to be used to determine network connectivity as opposed to using browser's `navigator.onLine` property. If the browser does not support `navigator.onLine` a network request based connectivity check will be performed regardless of the state of this flag.
+    * @property {number} refreshDelay {@link Flybits.context.ContextPlugin#refreshDelay}
+    */
+  var Deferred = Flybits.Deferred;
+  var ObjUtil = Flybits.util.Obj;
+
+  var Connectivity = function(opts){
+    context.ContextPlugin.call(this,opts);
+    if(opts){
+      this.opts = ObjUtil.extend({},this.opts);
+      ObjUtil.extend(this.opts,opts);
+    }
+  };
+
+  Connectivity.prototype = Object.create(context.ContextPlugin.prototype);
+  Connectivity.prototype.constructor = Connectivity;
+
+  /**
+   * @memberof Flybits.context.Connectivity
+   * @member {string} TYPEID String descriptor to uniquely identify context data type on the Flybits context gateway.
+   */
+  Connectivity.prototype.TYPEID = Connectivity.TYPEID = 'ctx.sdk.network';
+
+  /**
+   * Check to see if Connectivity retrieval is available on the current browser.
+   * @memberof Flybits.context.Connectivity
+   * @function isSupported
+   * @override
+   * @returns {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value.  Promise rejects with a {@link Flybits.Validation} object with errors.
+   */
+  Connectivity.isSupported = Connectivity.prototype.isSupported = function(){
+    var def = new Deferred();
+    def.resolve();
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
 
     return def.promise;
   };
 
+<<<<<<< HEAD
   BrowserStore.prototype._saveState = function(event){
     return this._store.setItem(event.tmpID,event.toJSON());
   };
@@ -3564,10 +3692,38 @@ analytics.BrowserStore = (function(){
     }).catch(function(){
       def.reject();
     });
+=======
+  /**
+   * Retrieve browser's current connectivity status.
+   * @memberof Flybits.context.Connectivity
+   * @function getState
+   * @override
+   * @returns {external:Promise<Flybits.context.Connectivity.ConnectionState,Flybits.Validation>} Promise that resolves with {@link Flybits.context.Connectivity.ConnectionState|ConnectionState} object.  Promise rejects with a {@link Flybits.Validation} object with errors.
+   */
+  Connectivity.getState = Connectivity.prototype.getState = function(){
+    var def = new Deferred();
+    var plugin = this;
+    if('onLine' in navigator && !this.opts.hardCheck){
+      def.resolve({
+        state: navigator.onLine?plugin.state.CONNECTED:plugin.state.DISCONNECTED
+      });
+    } else{
+      fetch(Flybits.cfg.HOST+"/ping").then(function(resp){
+        def.resolve({
+          state: plugin.state.CONNECTED
+        });
+      }).catch(function(e){
+        def.resolve({
+          state: plugin.state.DISCONNECTED
+        });
+      });
+    }
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
 
     return def.promise;
   };
 
+<<<<<<< HEAD
 
   return BrowserStore;
 })();
@@ -3657,10 +3813,114 @@ analytics.DefaultChannel = (function(){
         }));
       });
     });
+=======
+  /**
+   * Converts context value object into the server expected format.
+   * @function
+   * @memberof Flybits.context.Connectivity
+   * @function _toServerFormat
+   * @param {Object} contextValue
+   * @return {Object} Expected server format of context value.
+   */
+  Connectivity._toServerFormat = Connectivity.prototype._toServerFormat = function(contextValue){
+    return {
+      connectionType: contextValue.state
+    };
+  };
+
+  /**
+   * @memberof Flybits.context.Connectivity
+   * @member {Object} state Connection state constants.
+   * @constant
+   * @property {number} DISCONNECTED Indicates the state of being disconnected.
+   * @property {number} CONNECTED Indicates the state of being connected.
+   */
+  Connectivity.state = Connectivity.prototype.state = {};
+  Connectivity.state.DISCONNECTED = Connectivity.prototype.state.DISCONNECTED = -1;
+  Connectivity.state.CONNECTED = Connectivity.prototype.state.CONNECTED = -99;
+
+  /**
+   * @memberof Flybits.context.Connectivity
+   * @member opts
+   * @type {Flybits.context.Connectivity.Options}
+   */
+  Connectivity.opts = Connectivity.prototype.opts = {
+    hardCheck: false
+  };
+
+  return Connectivity;
+})();
+
+/**
+ * @class Location
+ * @classdesc Utility class to retrieve browser location.
+ * @extends Flybits.context.ContextPlugin
+ * @memberof Flybits.context
+ * @param {Flybits.context.Location.Options} opts Configuration object to override default configuration
+ */
+context.Location = (function(){
+  /**
+   * @typedef Geoposition
+   * @memberof Flybits.context.Location
+   * @type Object
+   * @property {Object} coords
+   * @property {number} coords.latitude
+   * @property {number} coords.longitude
+   * @property {number} timestamp
+   */
+   /**
+    * @typedef Options
+    * @memberof Flybits.context.Location
+    * @type Object
+    * @property {number} maximumAge=1000*60*20
+    * @property {number} refreshDelay {@link Flybits.context.ContextPlugin#refreshDelay}
+    */
+  var Deferred = Flybits.Deferred;
+  var ObjUtil = Flybits.util.Obj;
+
+  var Location = function(opts){
+    context.ContextPlugin.call(this,opts);
+    if(opts){
+      this.opts = ObjUtil.extend({},this.opts);
+      ObjUtil.extend(this.opts,opts);
+    }
+  };
+
+  Location.prototype = Object.create(context.ContextPlugin.prototype);
+  Location.prototype.constructor = Location;
+
+  /**
+   * @memberof Flybits.context.Location
+   * @member {string} TYPEID String descriptor to uniquely identify context data type on the Flybits context gateway.
+   */
+  Location.prototype.TYPEID = Location.TYPEID = 'ctx.sdk.location';
+
+  /**
+   * Check to see if Location retrieval is available on the current browser.
+   * @memberof Flybits.context.Location
+   * @function isSupported
+   * @override
+   * @returns {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value.  Promise rejects with a {@link Flybits.Validation} object with errors.  Possible errors can include the lack of support on webview/browser or the User explicitly denying Location retrieval.
+   */
+  Location.isSupported = Location.prototype.isSupported = function(){
+    var def = new Deferred();
+
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(function(pos){
+        def.resolve();
+      },function(err){
+        console.error('>',err);
+        def.reject(new Flybits.Validation().addError('Location Sensing Not Supported',err.message?err.message:"User denied"));
+      });
+    } else{
+      def.reject(new Flybits.Validation().addError('Location Sensing Not Supported',"Device GeoLocation API not found."));
+    }
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
 
     return def.promise;
   };
 
+<<<<<<< HEAD
   DefaultChannel.prototype._preparePayload = function(events){
     return {
       deviceID: Session.deviceID,
@@ -3693,10 +3953,36 @@ analytics.DefaultChannel = (function(){
         }));
       });
     });
+=======
+  /**
+   * Retrieve browser's current location.
+   * @memberof Flybits.context.Location
+   * @function getState
+   * @override
+   * @returns {external:Promise<Flybits.context.Location.Geoposition,Flybits.Validation>} Promise that resolves with browser's {@link Flybits.context.Location.Geoposition|Geoposition} object.  Promise rejects with a {@link Flybits.Validation} object with errors.  Possible errors can include the lack of support on webview/browser or the User explicitly denying Location retrieval.
+   */
+  Location.getState = Location.prototype.getState = function(){
+    var def = new Deferred();
+
+    navigator.geolocation.getCurrentPosition(function(pos){
+      def.resolve({
+        coords:{
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        },
+        timestamp: pos.timestamp
+      });
+    },function(err){
+      console.error('>',err);
+      def.reject(new Flybits.Validation().addError('Location could not be resolved'));
+    },this.opts);
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
 
     return def.promise;
   };
 
+<<<<<<< HEAD
   DefaultChannel.prototype.uploadEvents = function(events){
     var channel = this;
     var payload = this._preparePayload(events);
@@ -3711,6 +3997,33 @@ analytics.DefaultChannel = (function(){
   };
 
   return DefaultChannel;
+=======
+  /**
+   * Converts context value object into the server expected format.
+   * @function
+   * @memberof Flybits.context.Location
+   * @function _toServerFormat
+   * @param {Object} contextValue
+   * @return {Object} Expected server format of context value.
+   */
+  Location._toServerFormat = Location.prototype._toServerFormat = function(contextValue){
+    return {
+      lat: contextValue.coords.latitude,
+      lng: contextValue.coords.longitude
+    };
+  };
+
+  /**
+   * @memberof Flybits.context.Location
+   * @member opts
+   * @type {Flybits.context.Location.Options}
+   */
+  Location.opts = Location.prototype.opts = {
+    maximumAge: 1000 * 60 * 20
+  };
+
+  return Location;
+>>>>>>> 1ba9d594071f6748046a0f0985503cf489bb92ed
 })();
 
 /**

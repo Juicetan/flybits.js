@@ -161,7 +161,9 @@ var initServerFileConfig = function(filePath){
 var setDeviceID = function(){
   var def = new Flybits.Deferred();
   var storage = Flybits.store.Property;
-  storage.get(Flybits.cfg.store.DEVICEID).then(function(val){
+  storage.ready.then(function(){
+    return storage.get(Flybits.cfg.store.DEVICEID);
+  }).then(function(val){
     if(val){
       Flybits.store.Session.deviceID = val;
       return val;
