@@ -10,7 +10,7 @@ analytics.BrowserStore = (function(){
   var ObjUtil = Flybits.util.Obj;
   var Event = analytics.Event;
 
-  var BrowserStore = function(opts){
+  function BrowserStore(opts){
     analytics.AnalyticsStore.call(this,opts);
     if(opts){
       this.opts = ObjUtil.extend({},this.opts);
@@ -45,7 +45,7 @@ analytics.BrowserStore = (function(){
         }
       }
     }
-  };
+  }
 
   BrowserStore.prototype = Object.create(analytics.AnalyticsStore.prototype);
   BrowserStore.prototype.constructor = BrowserStore;
