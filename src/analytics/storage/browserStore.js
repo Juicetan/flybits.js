@@ -42,6 +42,14 @@ analytics.BrowserStore = (function(){
         },
         length: function(){
           return Promise.resolve(Object.keys(this.contents).length);
+        },
+        iterate: function(callback){
+          var store = this;
+          var keys = Object.keys(this.contents);
+          for(var i = 0; i < keys.length; i++){
+            callback(this.contents[keys[i]],keys[i],i);
+          }
+          return Promise.resolve();
         }
       }
     }
