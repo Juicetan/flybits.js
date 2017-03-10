@@ -18,11 +18,14 @@ MemoryStore.prototype = {
     return Promise.resolve();
   },
   iterate: function(callback){
-    var store = this;
-    var keys = Object.keys(this.contents);
+    var keys = Object.keys(this.store);
     for(var i = 0; i < keys.length; i++){
-      callback(this.contents[keys[i]],keys[i],i);
+      callback(this.store[keys[i]],keys[i],i);
     }
+    return Promise.resolve();
+  },
+  clear: function(){
+    this.store = {};
     return Promise.resolve();
   }
 };
