@@ -100,7 +100,7 @@ analytics.BrowserStore = (function(){
     this._store.getItem(tmpID).then(function(res){
       if(res){
         var rehydratedEvt = new Event(res);
-        rehydratedEvt.tmpID = tmpID;
+        rehydratedEvt._tmpID = tmpID;
         def.resolve(rehydratedEvt);
       } else{
         def.resolve();
@@ -141,7 +141,7 @@ analytics.BrowserStore = (function(){
     var store = this._store;
     store.iterate(function(val, key, iterationNum){
       var rehydratedEvt = new Event(val);
-      rehydratedEvt.tmpID = key;
+      rehydratedEvt._tmpID = key;
       data.push(rehydratedEvt);
     }).then(function(){
       def.resolve(data);
@@ -153,7 +153,7 @@ analytics.BrowserStore = (function(){
   };
 
   BrowserStore.prototype._saveState = function(event){
-    return this._store.setItem(event.tmpID,event.toJSON());
+    return this._store.setItem(event._tmpID,event.toJSON());
   };
 
   BrowserStore.prototype._validateStoreState = function(){
