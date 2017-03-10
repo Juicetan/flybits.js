@@ -1,6 +1,6 @@
-var MemoryStore = function(){
+function MemoryStore(){
   this.store = {};
-};
+}
 
 MemoryStore.prototype = {
   createInstance: function(){
