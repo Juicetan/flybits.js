@@ -33,8 +33,12 @@ describe('Analytics Manager Collection', function(){
       cookie: ""
     };
     global.window = {
-      localStorage: new MemoryStore()
+      localStorage: new MemoryStore(),
+      navigator: {
+        userAgent: 'useragent/test'
+      }
     };
+    global.navigator = window.navigator;
     global.localStorage = window.localStorage;
     global.Flybits = sdkStub;
 
@@ -45,6 +49,7 @@ describe('Analytics Manager Collection', function(){
   after(function(){
     delete global.document;
     delete global.window;
+    delete global.navigator;
     delete global.localStorage;
     delete global.Flybits;
     global.Flybits = sdkStub;
@@ -63,16 +68,77 @@ describe('Analytics Manager Collection', function(){
     });
 
     it('Store new discrete event', function(done){
-      Flybits.analytics.Manager.logEvent('testevent',{
+      var testProperty = {
         customKey: 'customValue'
-      }).then(function(e){
+      };
+      Flybits.analytics.Manager.logEvent('testevent',testProperty).then(function(e){
         return Flybits.analytics.Manager._analyticsStore.getAllEvents();
       }).then(function(events){
         events.length.should.be.exactly(1);
+        events[0].type.should.be.exactly(Flybits.analytics.Event.types.DISCRETE);
         events[0].name.should.be.exactly('testevent');
-        events[0].properties.should.be.eql({
-          customKey: 'customValue'
-        });
+        events[0].properties.should.be.eql(testProperty);
+        done();
+      }).catch(function(e){
+        done(e);
+      });
+    });
+
+    it('Log discrete event with browser user agent', function(){
+      var testProperty = {
+        customKey: 'customValue'
+      };
+      Flybits.analytics.Manager.logEvent('testevent',testProperty).then(function(e){
+        return Flybits.analytics.Manager._analyticsStore.getAllEvents();
+      }).then(function(events){
+        events[0]._internal.should.have.keys('osType','osVersion');
+        events[0]._internal.osType.should.be.exactly('browser');
+        events[0]._internal.osVersion.should.be.exactly('useragent/test');
+        done();
+      }).catch(function(e){
+        done(e);
+      });
+    });
+
+    it('Log timed start event', function(){
+      var testProperty = {
+        customKey: 'customValue'
+      };
+      Flybits.analytics.Manager.startTimedEvent('testevent',testProperty).then(function(e){
+        return Flybits.analytics.Manager._analyticsStore.getAllEvents();
+      }).then(function(events){
+        events.length.should.be.exactly(1);
+        events[0].type.should.be.exactly(Flybits.analytics.Event.types.TIMEDSTART);
+        events[0].name.should.be.exactly('testevent');
+        events[0].properties.should.be.eql(testProperty);
+        done();
+      }).catch(function(e){
+        done(e);
+      });
+    });
+
+    it('Log timed start event with browser agent', function(){
+      var testProperty = {
+        customKey: 'customValue'
+      };
+      Flybits.analytics.Manager.startTimedEvent('testevent',testProperty).then(function(e){
+        return Flybits.analytics.Manager._analyticsStore.getAllEvents();
+      }).then(function(events){
+        events[0]._internal.should.have.keys('osType','osVersion');
+        events[0]._internal.osType.should.be.exactly('browser');
+        events[0]._internal.osVersion.should.be.exactly('useragent/test');
+        done();
+      }).catch(function(e){
+        done(e);
+      });
+    });
+
+    it('Log timed start event returns a reference ID', function(){
+      var testProperty = {
+        customKey: 'customValue'
+      };
+      Flybits.analytics.Manager.startTimedEvent('testevent',testProperty).then(function(e){
+        e.should.be.a.String();
         done();
       }).catch(function(e){
         done(e);
