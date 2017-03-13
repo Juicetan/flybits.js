@@ -50,7 +50,7 @@ describe('Event model functionality', function(){
     evt = new Event({
       loggedAt: now
     });
-    parsingSpy.should.be.called(4);
+    parsingSpy.callCount.should.be.exactly(4);
     evt.loggedAt.should.be.a.Date();
     evt.loggedAt.getTime().should.be.exactly(now);
 
@@ -61,19 +61,19 @@ describe('Event model functionality', function(){
     evt = new Event({
       properties: customProperty
     });
-    parsingSpy.should.be.called(5);
+    parsingSpy.callCount.should.be.exactly(5);
     evt.properties.should.be.exactly(customProperty);
     
     evt = new Event({
       flbProperties: customProperty
     });
-    parsingSpy.should.be.called(6);
+    parsingSpy.callCount.should.be.exactly(6);
     evt._internal.should.be.exactly(customProperty);
 
     evt = new Event({
       isFlybits: true
     });
-    parsingSpy.should.be.called(7);
+    parsingSpy.callCount.should.be.exactly(7);
     evt._isInternal.should.be.true();
 
     parsingSpy.restore();
