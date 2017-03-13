@@ -14,7 +14,7 @@ var CookieStore = (function(){
   CookieStore.prototype.isSupported = CookieStore.isSupported = function(){
     var def = new Deferred();
     var validation = new Validation();
-    var support = document && 'cookie' in document;
+    var support = typeof document === 'object' && 'cookie' in document;
     if(support){
       try{
         BrowserUtil.setCookie('flbstoresupport','true');

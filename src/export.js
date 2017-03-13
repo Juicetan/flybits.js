@@ -5,6 +5,7 @@ if(typeof window === 'object'){
   Flybits.init = Flybits.init.browser;
   Flybits.store.Property = Flybits.store.Property.browser;
   Flybits.context = context;
+  Flybits.analytics = analytics;
 } else if(typeof exports === 'object' && typeof module !== 'undefined'){
   var fs = require('fs');
   var Persistence = require('node-persist');

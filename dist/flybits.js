@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version master:1ba9d59
+// @version feature/analytics:dca8caa
 ;(function(undefined) {
 
 /**
@@ -65,18 +65,32 @@ var Flybits = {
  */
 var context = {};
 
+/**
+ * Reporting manager to facilitate the reporting of application events.
+ * @namespace
+ * @memberof Flybits
+ */
+var analytics = {};
+
 //defaults
 Flybits.cfg = {
   HOST: 'http://tenant.flybits.com/v2',
   CTXHOST: 'https://gateway.flybits.com/ctxdata',
   APIKEY: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
   CTXREPORTDELAY: 60000,
+  analytics: {
+    REPORTDELAY: 3600000,
+    REPORTDELAYUNIT: 'milliseconds',
+    MAXSTORESIZE: 100
+  },
   store: {
     SDKPROPS: 'flb.sdk.properties',
     RESOURCEPATH: "./res/",
     DEVICEID: 'flb_device',
     USERTOKEN: 'flb_usertoken',
-    USERTOKENEXP: 'flb_usertoken_expiry'
+    USERTOKENEXP: 'flb_usertoken_expiry',
+    ANALYTICSLASTREPORTED: 'flb_analytics_lastreported',
+    ANALYTICSLASTREPORTATTEMPTED: 'flb_analytics_lastreportattempted',
   },
   res: {
     TAGS: '/Tags',
@@ -100,7 +114,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "master:1ba9d59";
+Flybits.VERSION = "feature/analytics:dca8caa";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -174,6 +188,11 @@ var setDeviceID = function(){
 var setStaticDefaults = function(){
   if(Flybits.context){
     Flybits.context.Manager.reportDelay = Flybits.cfg.CTXREPORTDELAY;
+  }
+  if(Flybits.analytics){
+    Flybits.analytics.Manager.reportDelay = Flybits.cfg.analytics.REPORTDELAY;
+    Flybits.analytics.Manager.reportDelayUnit = Flybits.cfg.analytics.REPORTDELAYUNIT;
+    Flybits.analytics.Manager.maxStoreSize = Flybits.cfg.analytics.MAXSTORESIZE;
   }
 };
 
@@ -538,6 +557,52 @@ Flybits.interface.ContextPlugin = {
    * @return {Object} Expected server format of context value.
    */
   _toServerFormat: function(contextValue){}
+};
+
+/**
+ * Interface for implementing data stores that operate on key/value pairs.
+ * @memberof Flybits.interface
+ * @interface
+ */
+Flybits.interface.KeyDataStore = {
+  /**
+   * Retrieves the amount of entries in the data store.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @return {external:Promise<Object,Flybits.Validation>} Promise that resolves with the number of entries in the data store.
+   */
+  getSize: function(){},
+  /**
+   * Adds/Replaces/Removes an item in the data store.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @param {string} id ID of item to be stored.
+   * @param {Object} item Item to be stored in data store.  If `null` or `undefined` is supplied the related item that has provided `id` will be removed from the data store.
+   * @return {external:Promise<Object,Flybits.Validation>} Promise that resolves without value if data is successfully set in data store.
+   */
+  set: function(id,item){},
+  /**
+   * Retrieves an item from the data store.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @param {string} id ID of item to be retrieved.
+   * @return {external:Promise<Object,Flybits.Validation>} Promise that resolves with data store item based on `id` if it exists.
+   */
+  get: function(id){},
+  /**
+   * Retrieves all item keys from the data store.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @return {external:Promise<Object,Flybits.Validation>} Promise that resolves with all item keys in the data store.
+   */
+  getKeys: function(){},
+  /**
+   * Clears the entire data store of its entries.
+   * @function
+   * @memberof Flybits.interface.KeyDataStore
+   * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without value if data clear is successful.
+   */
+  clear: function(){}
 };
 
 /**
@@ -1926,7 +1991,7 @@ var CookieStore = (function(){
   CookieStore.prototype.isSupported = CookieStore.isSupported = function(){
     var def = new Deferred();
     var validation = new Validation();
-    var support = document && 'cookie' in document;
+    var support = typeof document === 'object' && 'cookie' in document;
     if(support){
       try{
         BrowserUtil.setCookie('flbstoresupport','true');
@@ -3015,6 +3080,813 @@ context.Location = (function(){
 })();
 
 /**
+ * @classdesc Model to represent an analytics event to be logged.
+ * @class Event
+ * @memberof Flybits.analytics
+ * @extends BaseModel
+ * @implements {Flybits.interface.Serializable}
+ * @param {Object} serverObj Raw Flybits core model `Object` directly from API.
+ */
+analytics.Event = (function(){
+  var ObjUtil = Flybits.util.Obj;
+
+  var Event = function(serverObj){
+    BaseModel.call(this,serverObj);
+    this._tmpID = ObjUtil.guid(1) + '-' + Date.now();
+    this.type = this.types.DISCRETE;
+    this.name = '';
+    this.loggedAt = new Date();
+    this.properties = {};
+    this._internal = {};
+    this._isInternal = false;
+
+    if(serverObj){
+      this.fromJSON(serverObj);
+    }
+  };
+  Event.prototype = Object.create(BaseModel.prototype);
+  Event.prototype.constructor = Event;
+  Event.prototype.implements('Serializable');
+
+  /**
+   * @memberof Flybits.analytics.Event
+   * @member {Object} types A mapping of event types.
+   * @constant
+   * @property {string} DISCRETE Event type for discrete one time events.
+   * @property {string} TIMEDSTART Event type for the start of a timed event.
+   * @property {string} TIMEDEND Event type for the end of a timed event.
+   */
+  Event.prototype.types = Event.types = {};
+  Event.prototype.types.DISCRETE = Event.types.DISCRETE = 'event_discrete';
+  Event.prototype.types.TIMEDSTART = Event.types.TIMEDSTART = 'event_timestart';
+  Event.prototype.types.TIMEDEND = Event.types.TIMEDEND = 'event_timeend';
+
+  Event.prototype.TIMEDREFID = Event.TIMEDREFID = 'timedRef';
+  Event.prototype.OSTYPE = Event.OSTYPE = 'osType';
+  Event.prototype.OSVERSION = Event.OSVERSION = 'osVersion';
+
+  Event.prototype._setProp = function(obj, key, value){
+    if(typeof value === 'undefined' || value === null){
+      delete obj[key];
+      return this;
+    }
+
+    obj[key] = value;
+    return this;
+  };
+
+  /**
+   * Used to set custom properties on to an analytics event.
+   * @function setProperty
+   * @instance
+   * @memberof Flybits.analytics.Event
+   * @param {string} key Data key.
+   * @param {Object} value Any valid JSON value to be stored based on provided key.  If `null` or `undefined` is provided then the provided key will be removed from the properties map.
+   */
+  Event.prototype.setProperty = function(key, value){
+    return this._setProp(this.properties, key, value);
+  };
+
+  Event.prototype._setInternalProperty = function(key, value){
+    return this._setProp(this._internal, key, value);
+  };
+
+  Event.prototype.fromJSON = function(serverObj){
+    /**
+     * @instance
+     * @memberof Flybits.analytics.Event
+     * @member {string} type Event type.
+     */
+    this.type = serverObj.type || this.types.DISCRETE;
+    /**
+     * @instance
+     * @memberof Flybits.analytics.Event
+     * @member {string} name Name of event.
+     */
+    this.name = serverObj.name;
+    /**
+     * @instance
+     * @memberof Flybits.analytics.Event
+     * @member {Date} loggedAt Date object instantiated at time of logging.
+     */
+    this.loggedAt = serverObj.loggedAt?new Date(serverObj.loggedAt):new Date();
+    /**
+     * @instance
+     * @memberof Flybits.analytics.Event
+     * @member {Object} properties Custom event properties.
+     */
+    this.properties = serverObj.properties || {};
+
+    this._internal = serverObj.flbProperties || {};
+    this._isInternal = serverObj.isFlybits || false;
+  };
+
+  Event.prototype.toJSON = function(){
+    var obj = this;
+    var retObj = {
+      type: this.type,
+      name: this.name,
+      loggedAt: this.loggedAt.getTime(),
+      properties: this.properties,
+      flbProperties: this._internal,
+      isFlybits: this._isInternal
+    };
+
+    return retObj;
+  };
+
+  return Event;
+})();
+
+/**
+ * This is a utility class, do not use constructor.
+ * @class Manager
+ * @classdesc Main manager to collect and report events for later analysis.
+ * @memberof Flybits.analytics
+ */
+analytics.Manager = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+  var Session = Flybits.store.Session;
+  var Event = analytics.Event;
+
+  var restoreTimestamps = function(){
+    var lastReportedPromise = Flybits.store.Property.get(Flybits.cfg.store.ANALYTICSLASTREPORTED).then(function(epoch){
+      if(epoch){
+        analyticsManager.lastReported = +epoch;
+      }
+    });
+    var lastReportAttemptedPromise = Flybits.store.Property.get(Flybits.cfg.store.ANALYTICSLASTREPORTATTEMPTED).then(function(epoch){
+      if(epoch){
+        analyticsManager.lastReportAttempted = +epoch;
+      }
+    });
+
+    return Promise.settle([lastReportedPromise,lastReportAttemptedPromise]);
+  };
+
+  var applyDefaultSysProps = function(event){
+    if(typeof window === 'object'){
+      event._setInternalProperty(Event.OSTYPE,'browser');
+      if(window.hasOwnProperty('navigator')){
+        event._setInternalProperty(Event.OSVERSION,navigator.userAgent);
+      }
+    } else{
+      event._setInternalProperty(Event.OSTYPE,'node');
+      if(typeof process !== 'undefined'){
+        event._setInternalProperty(Event.OSVERSION,process.version);
+      }
+    }
+    return event;
+  };
+
+  var timeUnitMultiplier = {
+    milliseconds: 1,
+    seconds: 1000,
+    minutes: 60*1000,
+    hours: 60*60*1000,
+    days: 24*60*60*1000
+  };
+  var resolveMilliseconds = function(value,units){
+    var multiplier = timeUnitMultiplier[units] || 1;
+    return value * multiplier;
+  };
+
+  var analyticsManager = {
+    /**
+     * @memberof Flybits.analytics.Manager
+     * @member {number} maxStoreSize=100 Maximum number of analytics events that can be stored locally before reporting to the server.  If any new events are created and the maximum has already been hit, the oldest records will be discarded first much like a queue.
+     */
+    maxStoreSize: 100,
+    /**
+     * @memberof Flybits.analytics.Manager
+     * @member {number} reportDelay=3600000 Delay before the next interval of analytics reporting begins.  Note that the timer starts after the previous interval's analytics reporting has completed.  The delay unit type is defined in {@link Flybits.analytics.Manager.reportDelayUnit}
+     */
+    reportDelay: 3600000,
+    /**
+     * @memberof Flybits.analytics.Manager
+     * @member {string} reportDelayUnit=milliseconds Unit of measure to be used for {@link Flybits.analytics.Manager.reportDelay}.  Possible values include: `milliseconds`, `seconds`, `minutes`,`hours`, `days`.
+     */
+    reportDelayUnit: 'milliseconds',
+    /**
+     * @memberof Flybits.analytics.Manager
+     * @member {number} lastReported Epoch time (milliseconds) of when the manager last successfully reported analytics data.
+     */
+    lastReported: null,
+    /**
+     * @memberof Flybits.analytics.Manager
+     * @member {number} lastReportAttempted Epoch time (milliseconds) of when the manager last attempted to report analytics data.  It is possible that this time does not coincide with {@link Flybits.analytics.Manager.lastReported} as the report may have failed or there was no analytics to report.
+     */
+    lastReportAttempted: null,
+    _reportTimeout: null,
+    _analyticsStore: null,
+    _uploadChannel: null,
+    _timedEventCache: {},
+    /**
+     * @memberof Flybits.analytics.Manager
+     * @member {boolean} isReporting Flag indicating whether scheduled analytics reporting is enabled.
+     */
+    isReporting: false,
+    /**
+     * Restores Manager state properties, initializes default local storage and upload channel, and starts automated batch reporting of stored analytics.
+     * @memberof Flybits.analytics.Manager
+     * @function initialize
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+    initialize: function(){
+      var def = new Deferred();
+      var manager = this;
+
+      this._analyticsStore = new analytics.BrowserStore({
+        maxStoreSize: Flybits.cfg.analytics.MAXSTORESIZE
+      });
+      this._uploadChannel = new analytics.DefaultChannel();
+      
+      restoreTimestamps().then(function(){
+        return manager.startReporting();
+      }).then(function(){
+        def.resolve();
+      }).catch(function(e){
+        def.reject(e);
+      });
+
+      return def.promise;
+    },
+    /**
+     * Stops the scheduled service that continuously batch reports collected analytics data if there exists any.
+     * @memberof Flybits.analytics.Manager
+     * @function stopReporting
+     * @return {Flybits.analytics.Manager} Reference to this context manager to allow for method chaining.
+     */
+    stopReporting: function(){
+      this.isReporting = false;
+      clearTimeout(this._reportTimeout);
+      return this;
+    },
+    /**
+     * Starts the scheduled service that continuously batch reports collected analytics data if there exists any.
+     * @memberof Flybits.analytics.Manager
+     * @function startReporting
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+    startReporting: function(){
+      var def = new Deferred();
+      var manager = this;
+      manager.stopReporting();
+      
+      var sessionPromise = Session.user?Promise.resolve(Session.user):Flybits.api.User.getSignedInUser();
+      sessionPromise.then(function(user){
+        var interval;
+        interval = function(){
+          manager.report().catch(function(e){}).then(function(){
+            if(manager.isReporting){
+              manager._reportTimeout = setTimeout(function(){
+                interval();
+              },resolveMilliseconds(manager.reportDelay,manager.reportDelayUnit));
+            }
+          });
+
+          manager.isReporting = true;
+        };
+        interval();
+        def.resolve();
+      }).catch(function(e){
+        def.reject(e);
+      });
+
+      return def.promise;
+    },
+    /**
+     * Batch reports collected analytics data if it exists.
+     * @memberof Flybits.analytics.Manager
+     * @function report
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+    report: function(){
+      var def = new Deferred();
+      var manager = this;
+      var eventTmpIDs;
+      this._analyticsStore.getAllEvents().then(function(events){
+        eventTmpIDs = events.map(function(evt){
+          return evt._tmpID;
+        });
+        if(eventTmpIDs.length < 1){
+          throw new Validation().addError('No analytics to upload.','',{
+            code: Validation.type.NOTFOUND
+          });
+        }
+        return manager._uploadChannel.uploadEvents(events);
+      }).then(function(){
+        manager.lastReported = Date.now();
+        Flybits.store.Property.set(Flybits.cfg.store.ANALYTICSLASTREPORTED,manager.lastReported);
+        return manager._analyticsStore.clearEvents(eventTmpIDs);
+      }).then(function(){
+        def.resolve();
+      }).catch(function(e){
+        if(e instanceof Validation && e.firstError().code !== Validation.type.NOTFOUND){
+          console.error('> analytics report error',e);
+        }
+        def.reject(e);
+      }).then(function(){
+        manager.lastReportAttempted = Date.now();
+        Flybits.store.Property.set(Flybits.cfg.store.ANALYTICSLASTREPORTATTEMPTED,manager.lastReportAttempted);
+      });
+      
+      return def.promise;
+    },
+    /**
+     * Log a discrete analytics event.
+     * @memberof Flybits.analytics.Manager
+     * @function logEvent
+     * @param {string} eventName Name of event.
+     * @param {Object} properties Map of custom properties.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+    logEvent: function(eventName, properties){
+      var evt = new Event({
+        name: eventName,
+        type: Event.types.DISCRETE,
+        properties: properties
+      });
+
+      applyDefaultSysProps(evt);
+
+      return this._analyticsStore.addEvent(evt);
+    },
+    /**
+     * Log the start of timed analytics event.
+     * @memberof Flybits.analytics.Manager
+     * @function startTimedEvent
+     * @param {string} eventName Name of event.
+     * @param {Object} properties Map of custom properties.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves with a reference ID of the timed start event for use when ending the timed event. The promise will reject with a common Flybits Validation model instance should any error occur.
+     */
+    startTimedEvent: function(eventName, properties){
+      var manager = this;
+      var def = new Deferred();
+      var evt = new Event({
+        name: eventName,
+        type: Event.types.TIMEDSTART,
+        properties: properties
+      });
+      applyDefaultSysProps(evt);
+      evt._setInternalProperty(Event.TIMEDREFID, evt._tmpID);
+
+      this._analyticsStore.addEvent(evt).then(function(){
+        manager._timedEventCache[evt._tmpID] = evt;
+        def.resolve(evt._tmpID);
+      }).catch(function(e){
+        def.reject(e);
+      });
+
+      return def.promise;
+    },
+    /**
+     * Log the end of timed analytics event.
+     * @memberof Flybits.analytics.Manager
+     * @function endTimedEvent
+     * @param {string} refID Reference ID of timed start event.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+    endTimedEvent: function(refID){
+      var manager = this;
+      var def = new Deferred();
+      var startedEvt = manager._timedEventCache[refID];
+      if(!refID || !startedEvt){
+        def.reject(new Validation().addError('No Timed Event Found','No corresponding start event was found for provided reference.',{
+          code: Validation.type.NOTFOUND,
+          context: refID
+        }));
+        return def.promise;
+      }
+
+      var endEvt = new Event({
+        name: startedEvt.name,
+        type: Event.types.TIMEDEND,
+        properties: startedEvt.properties
+      });
+      endEvt._internal = startedEvt._internal;
+      endEvt._isInternal = startedEvt._isInternal;
+
+      this._analyticsStore.addEvent(endEvt).then(function(){
+        delete manager._timedEventCache[refID];
+        def.resolve();
+      }).catch(function(e){
+        def.reject(e);
+      });
+
+      return def.promise;
+    }
+  };
+
+  return analyticsManager;
+
+})();
+/**
+ * @classdesc Abstract base class from which all Analytics stores are extended.
+ * @memberof Flybits.analytics
+ * @abstract
+ * @class AnalyticsStore
+ * @param {Object} opts Configuration object to override default configuration
+ * @param {number} opts.maxStoreSize {@link Flybits.analytics.AnalyticsStore#maxStoreSize}
+ */
+analytics.AnalyticsStore = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+
+  var AnalyticsStore = function(opts){
+    if(this.constructor.name === 'Object'){
+      throw new Error('Abstract classes cannot be instantiated');
+    }
+
+    /**
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @member {number} [maxStoreSize=100] Maximum amount of analytics events to store locally before old events are flushed from the local store.
+     */
+    this.maxStoreSize = opts && opts.maxStoreSize?opts.maxStoreSize:100;
+  };
+  AnalyticsStore.prototype = {
+    implements: function(interfaceName){
+      if(!this._interfaces){
+        this._interfaces = [];
+      }
+      this._interfaces.push(interfaceName);
+    },
+    /**
+     * Add an analytics event to the local persistent storage.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function addEvent 
+     * @param {Flybits.analytics.Event} event Event object to be logged.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+    /**
+     * Removes analytics events from local persistent store based on their IDs.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function clearEvents
+     * @param {string[]} tmpIDs Generated temporary IDs of analytics events stored locally.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */ 
+    /**
+     * Removes all analytics events from local persistent store.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function clearAllEvents
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */ 
+    /**
+     * Retrieves all analytics events from local persistent storage that is currently available.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function getAllEvents
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves with all analytics events currently persisted and rejects with a common Flybits Validation model instance.
+     */ 
+    /**
+     * Retrieves an analytics event from local persistent storage that is currently available.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.AnalyticsStore
+     * @function getEvent
+     * @param {string} tmpID Temporary ID of analytics event that is used as a key for local storage.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves with an analytics event currently persisted and rejects with a common Flybits Validation model instance.
+     */ 
+  };
+
+  return AnalyticsStore;
+})();
+
+/**
+ * @class BrowserStore
+ * @classdesc Default analytics store for browsers.
+ * @extends Flybits.analytics.AnalyticsStore
+ * @memberof Flybits.analytics
+ */
+analytics.BrowserStore = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+  var ObjUtil = Flybits.util.Obj;
+  var Event = analytics.Event;
+
+  var BrowserStore = function(opts){
+    analytics.AnalyticsStore.call(this,opts);
+    if(opts){
+      this.opts = ObjUtil.extend({},this.opts);
+      ObjUtil.extend(this.opts,opts);
+    }
+
+    if(window.localforage){
+      this._store = localforage.createInstance({
+        name: this.STOREID
+      });
+    } else {
+      console.error('> WARNING ('+this.STOREID+'): `localforage` dependency not found. Reverting to temporary in memory storage.')
+      this._store = {
+        contents: {},
+        keys: function(){
+          return Promise.resolve(Object.keys(this.contents));
+        },
+        removeItem: function(key){
+          delete this.contents[key];
+          return Promise.resolve();
+        },
+        setItem: function(key,item){
+          this.contents[key] = item;
+          return Promise.resolve(item);
+        },
+        getItem: function(key){
+          var result = this.contents[key]?this.contents[key]:null;
+          return Promise.resolve(result);
+        },
+        length: function(){
+          return Promise.resolve(Object.keys(this.contents).length);
+        }
+      }
+    }
+  };
+
+  BrowserStore.prototype = Object.create(analytics.AnalyticsStore.prototype);
+  BrowserStore.prototype.constructor = BrowserStore;
+
+  /**
+   * @memberof Flybits.analytics.BrowserStore
+   * @member {string} STOREID String key for local storage
+   */
+  BrowserStore.prototype.STOREID = BrowserStore.STOREID = 'flb.analytics';
+
+  BrowserStore.prototype.addEvent = function(event){
+    var def = new Deferred();
+    var bStore = this;
+    var store = this._store;
+    var storeLength = 0;
+
+    if(!(event instanceof Event)){
+      def.reject(new Validation().addError('Invalid Argument','Must be an instance of an analytics Event',{
+        code: Validation.type.INVALIDARG
+      }));
+      return def.promise;
+    }
+
+    store.length().then(function(length){
+      storeLength = length;
+      return bStore._saveState(event);
+    }).then(function(){
+      if (storeLength >= bStore.maxStoreSize){
+        plugin._validateStoreState().then(function(){
+          def.resolve();
+        });
+      } else{
+        def.resolve();
+      }
+    }).catch(function(e){
+      def.reject(e);
+    });
+
+    return def.promise;
+  };
+
+  BrowserStore.prototype.getEvent = function(tmpID){
+    var def = new Deferred();
+    this._store.getItem(tmpID).then(function(res){
+      if(res){
+        var rehydratedEvt = new Event(res);
+        rehydratedEvt.tmpID = tmpID;
+        def.resolve(rehydratedEvt);
+      } else{
+        def.resolve();
+      }
+    }).catch(function(e){
+      def.reject(e);
+    });
+
+    return def.promise;
+  };
+
+  BrowserStore.prototype.clearEvents = function(tmpIDs){
+    var store = this._store;
+    var def = new Deferred();
+    var deleteData;
+    deleteData = function(){
+      if(tmpIDs.length <= 0){
+        def.resolve();
+        return;
+      }
+      var curKey = tmpIDs.pop();
+      store.removeItem(curKey).catch(function(){}).then(function(){
+        deleteData();
+      });
+    };
+    deleteData();
+
+    return def.promise;
+  };
+
+  BrowserStore.prototype.clearAllEvents = function(){
+    return this._store.clear();
+  };
+
+  BrowserStore.prototype.getAllEvents = function(){
+    var def = new Deferred();
+    var data = [];
+    var store = this._store;
+    store.iterate(function(val, key, iterationNum){
+      var rehydratedEvt = new Event(val);
+      rehydratedEvt.tmpID = key;
+      data.push(rehydratedEvt);
+    }).then(function(){
+      def.resolve(data);
+    }).catch(function(e){
+      def.reject(e);
+    });
+
+    return def.promise;
+  };
+
+  BrowserStore.prototype._saveState = function(event){
+    return this._store.setItem(event.tmpID,event.toJSON());
+  };
+
+  BrowserStore.prototype._validateStoreState = function(){
+    var bStore = this;
+    var def = new Deferred();
+    var promises = [];
+    var store = this._store;
+    store.keys().then(function(result){
+      var keys = result;
+      var now = new Date().getTime();
+      var accessCount = keys.length - bStore.maxStoreSize;
+
+      keys.sort(function(a,b){
+        return (+(a.split('-')[1]))-(+(b.split('-')[1]));
+      });
+
+      if(accessCount > 0){
+        for(var i = 0; i < accessCount; i++){
+          promises.push(store.removeItem(keys.shift()));
+        }
+      }
+
+      Promise.settle(promises).then(function(){
+        def.resolve();
+      });
+    }).catch(function(){
+      def.reject();
+    });
+
+    return def.promise;
+  };
+
+
+  return BrowserStore;
+})();
+
+/**
+ * @classdesc Abstract base class from which all Analytics upload channels are extended.
+ * @memberof Flybits.analytics
+ * @abstract
+ * @class UploadChannel
+ * @param {Object} opts Configuration object to override default configuration
+ */
+analytics.UploadChannel = (function(){
+  var Session = Flybits.store.Session;
+
+  var UploadChannel = function(opts){
+    if(this.constructor.name === 'Object'){
+      throw new Error('Abstract classes cannot be instantiated');
+    }
+  };
+  UploadChannel.prototype = {
+    implements: function(interfaceName){
+      if(!this._interfaces){
+        this._interfaces = [];
+      }
+      this._interfaces.push(interfaceName);
+    },
+    /**
+     * Uploads a list of Events to respective destinations.
+     * @abstract
+     * @instance
+     * @memberof Flybits.analytics.UploadChannel
+     * @function uploadEvents 
+     * @param {Flybits.analytics.Event[]} events Event objects to be uploaded.
+     * @return {external:Promise<undefined,Flybits.Validation>} Promise that resolves without a return value and rejects with a common Flybits Validation model instance.
+     */
+  };
+
+  return UploadChannel;
+})();
+
+/**
+ * @class DefaultChannel
+ * @classdesc Default analytics upload channel.
+ * @extends Flybits.analytics.UploadChannel
+ * @memberof Flybits.analytics
+ */
+analytics.DefaultChannel = (function(){
+  var Deferred = Flybits.Deferred;
+  var Validation = Flybits.Validation;
+  var ApiUtil = Flybits.util.Api;
+  var Session = Flybits.store.Session;
+  var Event = analytics.Event;
+
+  var DefaultChannel = function(opts){
+    analytics.UploadChannel.call(this,opts);
+
+    this.sessionKey = null;
+    this.HOST = Flybits.cfg.analytics.CHANNELHOST;
+    this.channelKey = Flybits.cfg.analytics.CHANNELKEY;
+    this.appID = Flybits.cfg.analytics.APPID;
+  };
+
+  DefaultChannel.prototype = Object.create(analytics.UploadChannel.prototype);
+  DefaultChannel.prototype.constructor = DefaultChannel;
+
+  DefaultChannel.prototype.initSession = function(){
+    var def = new Deferred();
+    var channel = this;
+    var url = this.HOST + '/session?key=' + this.channelKey;
+    fetch(url,{
+      method: 'GET',
+    }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
+      try {
+        var resp = ApiUtil.parseResponse(resultStr);
+        channel.sessionKey = resp.key;
+        def.resolve();
+      } catch (e) {
+        def.reject(new Validation().addError("Registration Failed", "Unexpected server response.", {
+          code: Validation.type.MALFORMED
+        }));
+      }
+    }).catch(function(resp){
+      ApiUtil.getResultStr(resp).then(function(resultStr){
+        var parsedResp = ApiUtil.parseErrorMsg(resultStr);
+        def.reject(new Validation().addError('Context report failed.',parsedResp,{
+          serverCode: resp.status
+        }));
+      });
+    });
+
+    return def.promise;
+  };
+
+  DefaultChannel.prototype._preparePayload = function(events){
+    return {
+      deviceID: Session.deviceID,
+      data: events.map(function(obj){
+        var rawObj = obj.toJSON();
+        rawObj.properties['_uid'] = Session.user.id;
+        return rawObj;
+      })
+    };
+  };
+
+  DefaultChannel.prototype._upload = function(payload){
+    var def = new Deferred();
+    var url = this.HOST + '/events';
+    fetch(url,{
+      method: 'POST',
+      headers: {
+        key: this.sessionKey,
+        appid: this.appID,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
+      def.resolve();
+    }).catch(function(resp){
+      ApiUtil.getResultStr(resp).then(function(resultStr){
+        var parsedResp = ApiUtil.parseErrorMsg(resultStr);
+        def.reject(new Validation().addError('Analytics report failed.',parsedResp,{
+          serverCode: resp.status
+        }));
+      });
+    });
+
+    return def.promise;
+  };
+
+  DefaultChannel.prototype.uploadEvents = function(events){
+    var channel = this;
+    var payload = this._preparePayload(events);
+    var sessionPromise = Promise.resolve();
+    if(!this.sessionKey){
+      sessionPromise = this.initSession();
+    }
+
+    return sessionPromise.then(function(){
+      return channel._upload(payload);
+    });
+  };
+
+  return DefaultChannel;
+})();
+
+/**
  * This is a utility class, do not use constructor.
  * @class Tag
  * @classdesc API wrapper class for the retrieval of {@link Flybits.Tag} models from Flybits core.
@@ -3813,7 +4685,9 @@ Flybits.api.User = (function(){
 
         if(resp && resp.data && resp.data.length > 0){
           try{
-            def.resolve(new User(resp.data[0]));
+            var signedInUser = new User(resp.data[0]);
+            Session.setSession(signedInUser);
+            def.resolve(signedInUser);
           } catch(e){
             def.reject(new Validation().addError("Request Failed","Failed to parse server model.",{
               code: Validation.type.MALFORMED,
@@ -4824,6 +5698,7 @@ if(typeof window === 'object'){
   Flybits.init = Flybits.init.browser;
   Flybits.store.Property = Flybits.store.Property.browser;
   Flybits.context = context;
+  Flybits.analytics = analytics;
 } else if(typeof exports === 'object' && typeof module !== 'undefined'){
   var fs = require('fs');
   var Persistence = require('node-persist');

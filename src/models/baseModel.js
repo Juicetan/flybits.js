@@ -11,9 +11,9 @@ var BaseModel = (function(){
      * @memberof BaseModel
      * @member {string} id Parsed ID of the Flybits core model.
      */
-    this.id = null;
+    this.id;
 
-    if(serverObj){
+    if(serverObj && serverObj.id){
       this.id = serverObj.id;
     }
   };

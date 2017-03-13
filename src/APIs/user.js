@@ -515,7 +515,9 @@ Flybits.api.User = (function(){
 
         if(resp && resp.data && resp.data.length > 0){
           try{
-            def.resolve(new User(resp.data[0]));
+            var signedInUser = new User(resp.data[0]);
+            Session.setSession(signedInUser);
+            def.resolve(signedInUser);
           } catch(e){
             def.reject(new Validation().addError("Request Failed","Failed to parse server model.",{
               code: Validation.type.MALFORMED,
