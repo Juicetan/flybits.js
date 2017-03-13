@@ -213,6 +213,19 @@ analytics.Manager = (function(){
 
       return this._analyticsStore.addEvent(evt);
     },
+    _logInt: function(eventName, properties, internalProperties){
+      var evt = new Event({
+        name: eventName,
+        type: Event.types.DISCRETE,
+        properties: properties,
+        isFlybits: true,
+        flbProperties: internalProperties
+      });
+
+      applyDefaultSysProps(evt);
+
+      return this._analyticsStore.addEvent(evt);
+    },
     /**
      * Log the start of timed analytics event.
      * @memberof Flybits.analytics.Manager
@@ -228,6 +241,28 @@ analytics.Manager = (function(){
         name: eventName,
         type: Event.types.TIMEDSTART,
         properties: properties
+      });
+      applyDefaultSysProps(evt);
+      evt._setInternalProperty(Event.TIMEDREFID, evt._tmpID);
+
+      this._analyticsStore.addEvent(evt).then(function(){
+        manager._timedEventCache[evt._tmpID] = evt;
+        def.resolve(evt._tmpID);
+      }).catch(function(e){
+        def.reject(e);
+      });
+
+      return def.promise;
+    },
+    _logStartInt: function(eventName, properties, internalProperties){
+      var manager = this;
+      var def = new Deferred();
+      var evt = new Event({
+        name: eventName,
+        type: Event.types.TIMEDSTART,
+        properties: properties,
+        isFlybits: true,
+        flbProperties: internalProperties
       });
       applyDefaultSysProps(evt);
       evt._setInternalProperty(Event.TIMEDREFID, evt._tmpID);
@@ -276,6 +311,9 @@ analytics.Manager = (function(){
       });
 
       return def.promise;
+    },
+    _logEndInt: function(refID){
+      return this.endTimedEvent(refID);
     }
   };
 
