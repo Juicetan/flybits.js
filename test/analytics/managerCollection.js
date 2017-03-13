@@ -124,7 +124,7 @@ describe('Analytics Manager Collection', function(){
       Flybits.analytics.Manager.startTimedEvent('testevent',testProperty).then(function(e){
         return Flybits.analytics.Manager._analyticsStore.getAllEvents();
       }).then(function(events){
-        events[0]._internal.should.have.keys('osType','osVersion');
+        events[0]._internal.should.have.keys('osType','osVersion','timedRef');
         events[0]._internal.osType.should.be.exactly('browser');
         events[0]._internal.osVersion.should.be.exactly('useragent/test');
         done();
