@@ -144,5 +144,30 @@ describe('Analytics Manager Collection', function(){
         done(e);
       });
     });
+
+    it('Log timed end event', function(done){
+      var testProperty = {
+        customKey: 'customValue'
+      };
+      var store = Flybits.analytics.Manager._analyticsStore;
+      var refID = "";
+
+      Flybits.analytics.Manager.startTimedEvent('testevent',testProperty).then(function(e){
+        refID = e;
+        return Flybits.analytics.Manager.endTimedEvent(refID);
+      }).then(function(){
+        return store.getAllEvents();
+      }).then(function(events){
+        var endEvt = events.filter(function(obj){
+          return obj.type === Flybits.analytics.Event.types.TIMEDEND;
+        });
+        endEvt.should.have.length(1);
+        endEvt = endEvt[0];
+        endEvt._internal[Flybits.analytics.Event.TIMEDREFID].should.be.exactly(refID);
+        done();
+      }).catch(function(e){
+        done(e);
+      });
+    });
   });
 });
