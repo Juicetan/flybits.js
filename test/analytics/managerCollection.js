@@ -84,7 +84,7 @@ describe('Analytics Manager Collection', function(){
       });
     });
 
-    it('Log discrete event with browser user agent', function(){
+    it('Log discrete event with browser user agent', function(done){
       var testProperty = {
         customKey: 'customValue'
       };
@@ -100,7 +100,7 @@ describe('Analytics Manager Collection', function(){
       });
     });
 
-    it('Log timed start event', function(){
+    it('Log timed start event', function(done){
       var testProperty = {
         customKey: 'customValue'
       };
@@ -117,7 +117,7 @@ describe('Analytics Manager Collection', function(){
       });
     });
 
-    it('Log timed start event with browser agent', function(){
+    it('Log timed start event with browser agent', function(done){
       var testProperty = {
         customKey: 'customValue'
       };
@@ -133,7 +133,7 @@ describe('Analytics Manager Collection', function(){
       });
     });
 
-    it('Log timed start event returns a reference ID', function(){
+    it('Log timed start event returns a reference ID', function(done){
       var testProperty = {
         customKey: 'customValue'
       };
