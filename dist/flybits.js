@@ -1,5 +1,5 @@
 // @author Justin Lam
-// @version feature/analytics:dca8caa
+// @version master:aadbb4d
 ;(function(undefined) {
 
 /**
@@ -114,7 +114,7 @@ Flybits.cfg = {
   }
 };
 
-Flybits.VERSION = "feature/analytics:dca8caa";
+Flybits.VERSION = "master:aadbb4d";
 
 var initBrowserFileConfig = function(url){
   var def = new Flybits.Deferred();
@@ -758,9 +758,9 @@ var BaseModel = (function(){
      * @memberof BaseModel
      * @member {string} id Parsed ID of the Flybits core model.
      */
-    this.id = null;
+    this.id;
 
-    if(serverObj){
+    if(serverObj && serverObj.id){
       this.id = serverObj.id;
     }
   };
@@ -3413,6 +3413,19 @@ analytics.Manager = (function(){
 
       return this._analyticsStore.addEvent(evt);
     },
+    _logInt: function(eventName, properties, internalProperties){
+      var evt = new Event({
+        name: eventName,
+        type: Event.types.DISCRETE,
+        properties: properties,
+        isFlybits: true,
+        flbProperties: internalProperties
+      });
+
+      applyDefaultSysProps(evt);
+
+      return this._analyticsStore.addEvent(evt);
+    },
     /**
      * Log the start of timed analytics event.
      * @memberof Flybits.analytics.Manager
@@ -3428,6 +3441,28 @@ analytics.Manager = (function(){
         name: eventName,
         type: Event.types.TIMEDSTART,
         properties: properties
+      });
+      applyDefaultSysProps(evt);
+      evt._setInternalProperty(Event.TIMEDREFID, evt._tmpID);
+
+      this._analyticsStore.addEvent(evt).then(function(){
+        manager._timedEventCache[evt._tmpID] = evt;
+        def.resolve(evt._tmpID);
+      }).catch(function(e){
+        def.reject(e);
+      });
+
+      return def.promise;
+    },
+    _logStartInt: function(eventName, properties, internalProperties){
+      var manager = this;
+      var def = new Deferred();
+      var evt = new Event({
+        name: eventName,
+        type: Event.types.TIMEDSTART,
+        properties: properties,
+        isFlybits: true,
+        flbProperties: internalProperties
       });
       applyDefaultSysProps(evt);
       evt._setInternalProperty(Event.TIMEDREFID, evt._tmpID);
@@ -3476,6 +3511,9 @@ analytics.Manager = (function(){
       });
 
       return def.promise;
+    },
+    _logEndInt: function(refID){
+      return this.endTimedEvent(refID);
     }
   };
 
@@ -3573,7 +3611,7 @@ analytics.BrowserStore = (function(){
   var ObjUtil = Flybits.util.Obj;
   var Event = analytics.Event;
 
-  var BrowserStore = function(opts){
+  function BrowserStore(opts){
     analytics.AnalyticsStore.call(this,opts);
     if(opts){
       this.opts = ObjUtil.extend({},this.opts);
@@ -3605,10 +3643,21 @@ analytics.BrowserStore = (function(){
         },
         length: function(){
           return Promise.resolve(Object.keys(this.contents).length);
+        },
+        iterate: function(callback){
+          var keys = Object.keys(this.contents);
+          for(var i = 0; i < keys.length; i++){
+            callback(this.contents[keys[i]],keys[i],i);
+          }
+          return Promise.resolve();
+        },
+        clear: function(){
+          this.contents = {};
+          return Promise.resolve();
         }
       }
     }
-  };
+  }
 
   BrowserStore.prototype = Object.create(analytics.AnalyticsStore.prototype);
   BrowserStore.prototype.constructor = BrowserStore;
@@ -3655,7 +3704,7 @@ analytics.BrowserStore = (function(){
     this._store.getItem(tmpID).then(function(res){
       if(res){
         var rehydratedEvt = new Event(res);
-        rehydratedEvt.tmpID = tmpID;
+        rehydratedEvt._tmpID = tmpID;
         def.resolve(rehydratedEvt);
       } else{
         def.resolve();
@@ -3696,7 +3745,7 @@ analytics.BrowserStore = (function(){
     var store = this._store;
     store.iterate(function(val, key, iterationNum){
       var rehydratedEvt = new Event(val);
-      rehydratedEvt.tmpID = key;
+      rehydratedEvt._tmpID = key;
       data.push(rehydratedEvt);
     }).then(function(){
       def.resolve(data);
@@ -3708,7 +3757,7 @@ analytics.BrowserStore = (function(){
   };
 
   BrowserStore.prototype._saveState = function(event){
-    return this._store.setItem(event.tmpID,event.toJSON());
+    return this._store.setItem(event._tmpID,event.toJSON());
   };
 
   BrowserStore.prototype._validateStoreState = function(){
