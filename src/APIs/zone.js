@@ -209,24 +209,18 @@ Flybits.api.Zone = (function(){
         throw validation;
       }
 
-      fetch(url,{
+      ApiUtil.fetch(url,{
         method: 'POST',
-        credentials: 'include',
         headers: {
           ApiKey: Flybits.cfg.APIKEY,
           physicalDeviceId: deviceID,
           'flybits-sdk-version': Flybits.VERSION,
           'user-agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2793.0 Safari/537.36'
-        }
-      }).then(ApiUtil.checkResult).then(function(){
+        },
+      }).then(function(){
         def.resolve();
       }).catch(function(resp){
-        ApiUtil.getResultStr(resp).then(function(resultStr){
-          var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-          def.reject(new Validation().addError('Connection log failed.',parsedResp,{
-            serverCode: resp.status
-          }));
-        });
+        def.reject(resp);
       });
 
       return def.promise;
@@ -261,24 +255,18 @@ Flybits.api.Zone = (function(){
         throw validation;
       }
 
-      fetch(url,{
+      ApiUtil.fetch(url,{
         method: 'POST',
-        credentials: 'include',
         headers: {
           ApiKey: Flybits.cfg.APIKEY,
           physicalDeviceId: deviceID,
           'flybits-sdk-version': Flybits.VERSION,
           'user-agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2793.0 Safari/537.36'
-        }
-      }).then(ApiUtil.checkResult).then(function(){
+        },
+      }).then(function(){
         def.resolve();
       }).catch(function(resp){
-        ApiUtil.getResultStr(resp).then(function(resultStr){
-          var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-          def.reject(new Validation().addError('Disconnection log failed.',parsedResp,{
-            serverCode: resp.status
-          }));
-        });
+        def.reject(resp);
       });
 
       return def.promise;
@@ -345,26 +333,18 @@ Flybits.api.Zone = (function(){
         url += data.toString();
       }
 
-      fetch(url,{
+      ApiUtil.fetch(url,{
         method: 'GET',
-        credentials: 'include',
         headers: {
           ApiKey: Flybits.cfg.APIKEY,
           physicalDeviceId: deviceID,
           'flybits-sdk-version': Flybits.VERSION
         },
-      }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(respStr){
-        try{
-          var resp = ApiUtil.parseResponse(respStr);
+        respType: 'json'
+      }).then(function(resp){
+        if(resp && resp.data && resp.data.length >= 0){
           var paging = ApiUtil.parsePaging(resp);
           lastPaging = paging;
-        } catch(e){
-          def.reject(new Validation().addError("Request Failed","Unexpected server response.",{
-            code: Validation.type.MALFORMED,
-          }));
-        }
-
-        if(resp && resp.data && resp.data.length >= 0){
           var zones = resp.data.map(function(obj){
             try{
               return new Zone(obj);
@@ -386,12 +366,7 @@ Flybits.api.Zone = (function(){
           }));
         }
       }).catch(function(resp){
-        ApiUtil.getResultStr(resp).then(function(resultStr){
-          var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-          def.reject(new Validation().addError('Zones retrieval failed',parsedResp,{
-            serverCode: resp.status
-          }));
-        });
+        def.reject(resp);
       });
 
       return def.promise;
