@@ -14,24 +14,24 @@ Flybits.util.Api = (function(){
       delete opts.respType;
       ObjUtil.extend(ajaxOpts,opts);
 
-      fetch(url,ajaxOpts).then(this.checkResult()).then(this.getResultStr())
+      fetch(url,ajaxOpts).then(this.checkResult).then(this.getResultStr)
         .then(function(respStr){
           if(isJSON){
             try{
-              var resp = ApiUtil.parseResponse(respStr);
+              var resp = api.parseResponse(respStr);
               def.resolve(resp);
             } catch(e){
-              def.reject(new Validation().addError("Request Failed","Unexpected server response.",{
-                code: Validation.type.MALFORMED,
+              def.reject(new Flybits.Validation().addError("Request Failed","Unexpected server response.",{
+                code: Flybits.Validation.type.MALFORMED,
               }));
             }
           } else{
             def.resolve(respStr);
           }
         }).catch(function(resp){
-          ApiUtil.getResultStr(resp).then(function(resultStr){
-            var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-            def.reject(new Validation().addError('Request error',parsedResp,{
+          api.getResultStr(resp).then(function(resultStr){
+            var parsedResp = api.parseErrorMsg(resultStr);
+            def.reject(new Flybits.Validation().addError('Request error',parsedResp,{
               serverCode: resp.status
             }));
           });
