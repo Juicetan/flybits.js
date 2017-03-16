@@ -126,18 +126,17 @@ Flybits.api.User = (function(){
     var url = Flybits.cfg.HOST + Flybits.cfg.res.SETREMEMBERME;
     var deviceID = Session.deviceID;
 
-    fetch(url,{
+    ApiUtil.fetch(url,{
       method: 'GET',
-      credentials: 'include',
       headers: {
         ApiKey: Flybits.cfg.APIKEY,
         physicalDeviceId: deviceID,
         'Content-Type': 'application/json'
       }
-    }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
+    }).then(function(resultStr){
       def.resolve();
     }).catch(function(resp){
-      def.reject();
+      def.reject(resp);
     });
 
     return def.promise;
@@ -195,24 +194,16 @@ Flybits.api.User = (function(){
         throw validation;
       }
 
-      fetch(url,{
+      ApiUtil.fetch(url,{
         method: 'POST',
-        credentials: 'include',
         headers: {
           ApiKey: Flybits.cfg.APIKEY,
           physicalDeviceId: deviceID,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(data),
-      }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
-        try{
-          var resp = ApiUtil.parseResponse(resultStr);
-        } catch(e){
-          def.reject(new Validation().addError("Registration Failed","Unexpected server response.",{
-            code: Validation.type.MALFORMED
-          }));
-        }
-
+        respType: 'json'
+      }).then(function(resp){
         try{
           var loggedInUser = new User(resp);
           Session.setSession(loggedInUser);
@@ -224,12 +215,7 @@ Flybits.api.User = (function(){
           }));
         }
       }).catch(function(resp){
-        ApiUtil.getResultStr(resp).then(function(resultStr){
-          var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-          def.reject(new Validation().addError('Registration Failed',parsedResp,{
-            serverCode: resp.status
-          }));
-        });
+        def.reject(resp);
       });
 
       return def.promise;
