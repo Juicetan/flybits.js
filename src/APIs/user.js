@@ -389,24 +389,16 @@ Flybits.api.User = (function(){
       var url = Flybits.cfg.HOST + Flybits.cfg.res.USERS + "/jwt";
       var deviceID = Session.deviceID;
 
-      fetch(url,{
+      ApiUtil.fetch(url,{
         method: 'GET',
-        credentials: 'include',
         headers: {
           ApiKey: Flybits.cfg.APIKEY,
           physicalDeviceId: deviceID,
           'Content-Type': 'application/json',
           'flybits-sdk-version': Flybits.VERSION
-        }
-      }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
-        try{
-          var resp = ApiUtil.parseResponse(resultStr);
-        } catch(e){
-          def.reject(new Validation().addError("Request Failed","Unexpected server response.",{
-            code: Validation.type.MALFORMED,
-          }));
-        }
-
+        },
+        respType: 'json'
+      }).then(function(resp){
         if(resp && resp.jwt){
           Session.setUserToken(resp.jwt);
           def.resolve(resp.jwt);
@@ -416,12 +408,7 @@ Flybits.api.User = (function(){
           }));
         }
       }).catch(function(resp){
-        ApiUtil.getResultStr(resp).then(function(resultStr){
-          var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-          def.reject(new Validation().addError('User access token retrieval failed',parsedResp,{
-            serverCode: resp.status
-          }));
-        });
+        def.reject(resp);
       });
 
       return def.promise;
@@ -439,9 +426,8 @@ Flybits.api.User = (function(){
       var url = Flybits.cfg.HOST + Flybits.cfg.res.CHANGEPASS;
       var deviceID = Session.deviceID;
 
-      fetch(url,{
+      ApiUtil.fetch(url,{
         method: 'POST',
-        credentials: 'include',
         headers: {
           ApiKey: Flybits.cfg.APIKEY,
           physicalDeviceId: deviceID,
@@ -452,15 +438,11 @@ Flybits.api.User = (function(){
           currentPassword: oldPassword,
           newPassword: newPassword
         }),
-      }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
+        respType: 'json'
+      }).then(function(resultStr){
         def.resolve();
       }).catch(function(resp){
-        ApiUtil.getResultStr(resp).then(function(resultStr){
-          var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-          def.reject(new Validation().addError('Password change failed',parsedResp,{
-            serverCode: resp.status
-          }));
-        });
+        def.reject(resp);
       });
 
       return def.promise;
