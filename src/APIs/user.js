@@ -476,24 +476,16 @@ Flybits.api.User = (function(){
       var url = Flybits.cfg.HOST + Flybits.cfg.res.USERS;
       var deviceID = Session.deviceID;
 
-      fetch(url,{
+      ApiUtil.fetch(url,{
         method: 'GET',
-        credentials: 'include',
         headers: {
           ApiKey: Flybits.cfg.APIKEY,
           physicalDeviceId: deviceID,
           'Content-Type': 'application/json',
           'flybits-sdk-version': Flybits.VERSION
-        }
-      }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
-        try{
-          var resp = ApiUtil.parseResponse(resultStr);
-        } catch(e){
-          def.reject(new Validation().addError("Request Failed","Unexpected server response.",{
-            code: Validation.type.MALFORMED,
-          }));
-        }
-
+        },
+        respType: 'json'
+      }).then(function(resp){
         if(resp && resp.data && resp.data.length > 0){
           try{
             var signedInUser = new User(resp.data[0]);
@@ -511,12 +503,7 @@ Flybits.api.User = (function(){
           }));
         }
       }).catch(function(resp){
-        ApiUtil.getResultStr(resp).then(function(resultStr){
-          var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-          def.reject(new Validation().addError('User retrieval failed',parsedResp,{
-            serverCode: resp.status
-          }));
-        });
+        def.reject(resp);
       });
 
       return def.promise;
