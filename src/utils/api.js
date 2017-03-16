@@ -7,9 +7,7 @@ Flybits.util.Api = (function(){
       throw resp;
     },
     getResultStr: function(resp){
-      return resp && resp.text?resp.text():new Promise(function(resolve,reject){
-        resolve("");
-      });
+      return resp && resp.text?resp.text():Promise.resolve("");
     },
     getResultJSON: function(resp){
       return resp.json();
