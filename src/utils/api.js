@@ -1,5 +1,44 @@
 Flybits.util.Api = (function(){
+  var Deferred = Flybits.Deferred;
+  var ObjUtil = Flybits.util.Obj;
+  var defaultAjaxOpts = {
+    method: 'GET',
+    credentials: 'include',
+  };  
+
   var api = {
+    fetch: function(url,opts){
+      var def = new Deferred();
+      var ajaxOpts = ObjUtil.extend({},defaultAjaxOpts);
+      var isJSON = opts.respType === 'json';
+      delete opts.respType;
+      ObjUtil.extend(ajaxOpts,opts);
+
+      fetch(url,ajaxOpts).then(this.checkResult()).then(this.getResultStr())
+        .then(function(respStr){
+          if(isJSON){
+            try{
+              var resp = ApiUtil.parseResponse(respStr);
+              def.resolve(resp);
+            } catch(e){
+              def.reject(new Validation().addError("Request Failed","Unexpected server response.",{
+                code: Validation.type.MALFORMED,
+              }));
+            }
+          } else{
+            def.resolve(respStr);
+          }
+        }).catch(function(resp){
+          ApiUtil.getResultStr(resp).then(function(resultStr){
+            var parsedResp = ApiUtil.parseErrorMsg(resultStr);
+            def.reject(new Validation().addError('Request error',parsedResp,{
+              serverCode: resp.status
+            }));
+          });
+        });
+
+      return def.promise;
+    },
     checkResult: function(resp){
       if(resp.status >= 200 && resp.status < 300){
         return resp;
