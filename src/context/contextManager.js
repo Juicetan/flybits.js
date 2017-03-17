@@ -195,22 +195,16 @@ context.Manager = (function(){
       var def = new Deferred();
       var url = Flybits.cfg.CTXHOST;
 
-      fetch(url,{
+      ApiUtil.fetch(url,{
         method: 'POST',
-        credentials: 'include',
         headers: {
           'X-Authorization': accessToken
         },
         body: JSON.stringify(data),
-      }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
+      }).then(function(result){
         def.resolve();
       }).catch(function(resp){
-        ApiUtil.getResultStr(resp).then(function(resultStr){
-          var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-          def.reject(new Validation().addError('Context report failed.',parsedResp,{
-            serverCode: resp.status
-          }));
-        });
+        def.reject(resp);
       });
 
       return def.promise;

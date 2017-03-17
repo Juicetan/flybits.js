@@ -27,25 +27,14 @@ analytics.DefaultChannel = (function(){
     var def = new Deferred();
     var channel = this;
     var url = this.HOST + '/session?key=' + this.channelKey;
-    fetch(url,{
+    ApiUtil.fetch(url,{
       method: 'GET',
-    }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
-      try {
-        var resp = ApiUtil.parseResponse(resultStr);
-        channel.sessionKey = resp.key;
-        def.resolve();
-      } catch (e) {
-        def.reject(new Validation().addError("Registration Failed", "Unexpected server response.", {
-          code: Validation.type.MALFORMED
-        }));
-      }
+      respType: 'json'
+    }).then(function(resp){
+      channel.sessionKey = resp.key;
+      def.resolve();
     }).catch(function(resp){
-      ApiUtil.getResultStr(resp).then(function(resultStr){
-        var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-        def.reject(new Validation().addError('Context report failed.',parsedResp,{
-          serverCode: resp.status
-        }));
-      });
+      def.reject(resp);
     });
 
     return def.promise;
@@ -65,23 +54,18 @@ analytics.DefaultChannel = (function(){
   DefaultChannel.prototype._upload = function(payload){
     var def = new Deferred();
     var url = this.HOST + '/events';
-    fetch(url,{
+    ApiUtil.fetch(url,{
       method: 'POST',
       headers: {
         key: this.sessionKey,
         appid: this.appID,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
-    }).then(ApiUtil.checkResult).then(ApiUtil.getResultStr).then(function(resultStr){
+      body: JSON.stringify(payload),
+    }).then(function(resp){
       def.resolve();
     }).catch(function(resp){
-      ApiUtil.getResultStr(resp).then(function(resultStr){
-        var parsedResp = ApiUtil.parseErrorMsg(resultStr);
-        def.reject(new Validation().addError('Analytics report failed.',parsedResp,{
-          serverCode: resp.status
-        }));
-      });
+      def.reject(resp);
     });
 
     return def.promise;
