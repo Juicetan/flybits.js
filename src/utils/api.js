@@ -8,6 +8,7 @@ Flybits.util.Api = (function(){
 
   var api = {
     fetch: function(url,opts){
+      opts = opts || {};
       var def = new Deferred();
       var ajaxOpts = ObjUtil.extend({},defaultAjaxOpts);
       var isJSON = opts.respType === 'json';
