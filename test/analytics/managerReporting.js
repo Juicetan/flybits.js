@@ -62,6 +62,7 @@ describe('Analytics Manager Collection', function(){
   });
 
   describe('Starts/stops report interval', function(){
+    var clock;
     beforeEach(function(){
       Flybits.store.Session.user = {
         name: 'testuser'
@@ -69,34 +70,30 @@ describe('Analytics Manager Collection', function(){
       sinon.stub(Flybits.analytics.Manager,'report',function(){
         return Promise.resolve();
       });
+      clock = sinon.useFakeTimers();
       return Flybits.analytics.Manager.initialize();
     });
     afterEach(function(){
       Flybits.analytics.Manager.report.restore();
       delete Flybits.store.Session.user;
+      clock.restore();
     });
 
     it('assign timeout reference', function(){
+      clock.tick(10);
       Flybits.analytics.Manager._reportTimeout.should.be.an.Object();
     });
 
-    it('should call report on configured interval', function(done){
-      this.timeout(40);
-      setTimeout(function(){
-        Flybits.analytics.Manager.report.callCount.should.be.exactly(4);
-        done();
-      },35);
+    it('should call report on configured interval', function(){
+      clock.tick(10);
+      Flybits.analytics.Manager.report.callCount.should.be.exactly(2);
     });
 
-    it('should be able to stop configured report interval', function(done){
-      this.timeout(40);
-      setTimeout(function(){
-        Flybits.analytics.Manager.stopReporting();
-      },25);
-      setTimeout(function(){
-        Flybits.analytics.Manager.report.callCount.should.be.exactly(3);
-        done();
-      },37);
+    it('should be able to stop configured report interval', function(){
+      clock.tick(5);
+      Flybits.analytics.Manager.stopReporting();
+      clock.tick(5);
+      Flybits.analytics.Manager.report.callCount.should.be.exactly(1);
     });
   });
 
