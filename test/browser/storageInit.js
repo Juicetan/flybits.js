@@ -160,7 +160,7 @@ describe('Browser: Property Storage', function(){
         warnOnUnregistered: false
       });
 
-      localStorageStub = sinon.stub(localStorage,'setItem',function(){
+      localStorageStub = sinon.stub(localStorage,'setItem').callsFake(function(){
         throw e;
       });
 
@@ -199,7 +199,7 @@ describe('Browser: Property Storage', function(){
         warnOnUnregistered: false
       });
 
-      localStorageStub = sinon.stub(localStorage,'setItem',function(){
+      localStorageStub = sinon.stub(localStorage,'setItem').callsFake(function(){
         throw e;
       });
 
@@ -244,12 +244,12 @@ describe('Browser: Property Storage', function(){
         warnOnUnregistered: false
       });
 
-      localForageSetSpy = sinon.stub(localforage, 'setItem', function(){
+      localForageSetSpy = sinon.stub(localforage, 'setItem').callsFake(function(){
         return Promise.reject();
       });
       localForageRemoveSpy = sinon.spy(localforage, 'removeItem');
 
-      localStorageSetSpy = sinon.stub(localStorage, 'setItem', function(){
+      localStorageSetSpy = sinon.stub(localStorage, 'setItem').callsFake(function(){
         throw e;
       });
       localStorageRemoveSpy = sinon.spy(localStorage, 'removeItem');

@@ -58,7 +58,7 @@ describe('Analytics Manager Initialization', function(){
     });
 
     it('initialize temporary storage in memory ', function(done){
-      var startReporting = sinon.stub(Flybits.analytics.Manager,'startReporting',function(){
+      var startReporting = sinon.stub(Flybits.analytics.Manager,'startReporting').callsFake(function(){
         return Promise.resolve();
       });
       var channelInitSpy = sinon.spy(Flybits.analytics,'DefaultChannel');
@@ -101,7 +101,7 @@ describe('Analytics Manager Initialization', function(){
     });
 
     it('initialize persistent storage with localforage in IDB', function(done){
-      var startReporting = sinon.stub(Flybits.analytics.Manager,'startReporting',function(){
+      var startReporting = sinon.stub(Flybits.analytics.Manager,'startReporting').callsFake(function(){
         return Promise.resolve();
       });
       var channelInitSpy = sinon.spy(Flybits.analytics,'DefaultChannel');
@@ -131,7 +131,7 @@ describe('Analytics Manager Initialization', function(){
       require('../../index.js');
       global.Flybits = window.Flybits;
       Flybits.initObj().then(function(){
-        sinon.stub(Flybits.analytics.Manager,'startReporting',function(){
+        sinon.stub(Flybits.analytics.Manager,'startReporting').callsFake(function(){
           return Promise.resolve();
         });
         return Flybits.analytics.Manager.initialize();
@@ -163,7 +163,7 @@ describe('Analytics Manager Initialization', function(){
       require('../../index.js');
       global.Flybits = window.Flybits;
       Flybits.initObj().then(function(){
-        sinon.stub(Flybits.analytics.Manager,'startReporting',function(){
+        sinon.stub(Flybits.analytics.Manager,'startReporting').callsFake(function(){
           return Promise.resolve();
         });
         return Flybits.analytics.Manager.initialize();

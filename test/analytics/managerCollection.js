@@ -58,7 +58,7 @@ describe('Analytics Manager Collection', function(){
 
   describe('Event Logging', function(){
     beforeEach(function(){
-      sinon.stub(Flybits.analytics.Manager,'startReporting',function(){
+      sinon.stub(Flybits.analytics.Manager,'startReporting').callsFake(function(){
         return Promise.resolve();
       });
       return Flybits.analytics.Manager.initialize();

@@ -67,7 +67,7 @@ describe('Analytics Manager Collection', function(){
       Flybits.store.Session.user = {
         name: 'testuser'
       };
-      sinon.stub(Flybits.analytics.Manager,'report',function(){
+      sinon.stub(Flybits.analytics.Manager,'report').callsFake(function(){
         return Promise.resolve();
       });
       clock = sinon.useFakeTimers();
@@ -109,7 +109,7 @@ describe('Analytics Manager Collection', function(){
     });
 
     it('should clear upon successful report', function(done){
-      sinon.stub(Flybits.analytics.Manager._uploadChannel,'uploadEvents',function(){
+      sinon.stub(Flybits.analytics.Manager._uploadChannel,'uploadEvents').callsFake(function(){
         return Promise.resolve();
       });
       Flybits.analytics.Manager.stopReporting();
@@ -134,7 +134,7 @@ describe('Analytics Manager Collection', function(){
     });
 
     it('should not clear upon failed report', function(done){
-      sinon.stub(Flybits.analytics.Manager._uploadChannel,'uploadEvents',function(){
+      sinon.stub(Flybits.analytics.Manager._uploadChannel,'uploadEvents').callsFake(function(){
         return Promise.reject('error');
       });
       Flybits.analytics.Manager.stopReporting();
