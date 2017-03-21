@@ -251,7 +251,7 @@ context.ContextPlugin = (function(){
           data.push({
             timestamp: Math.round((+curKey)/1000),
             dataTypeID: plugin.TYPEID,
-            value: plugin._toServerFormat(item)
+            data: plugin._toServerFormat(item)
           });
         }).catch(function(){}).then(function(){
           assembleData();
