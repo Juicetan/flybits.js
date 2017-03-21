@@ -47,7 +47,7 @@ describe('Fetch Wrapper Verfication',function(){
     fetchMock.restore();
   });
 
-  describe('should reject on >200s', function(){
+  describe('should reject on >200s', function(done){
     it('should reject on 300s', function(){
       fetchMock.get('*', 300);
       Flybits.util.Api.fetch('/test/').then(function(e){
@@ -57,7 +57,8 @@ describe('Fetch Wrapper Verfication',function(){
       });
       fetchMock.restore();
     });
-    it('should reject on 400s', function(){
+
+    it('should reject on 400s', function(done){
       fetchMock.get('*', 400);
       Flybits.util.Api.fetch('/test/').then(function(e){
         done(e);
@@ -66,7 +67,8 @@ describe('Fetch Wrapper Verfication',function(){
       });
       fetchMock.restore();
     });
-    it('should reject on 500s', function(){
+
+    it('should reject on 500s', function(done){
       fetchMock.get('*', 500);
       Flybits.util.Api.fetch('/test/').then(function(e){
         done(e);
@@ -77,4 +79,31 @@ describe('Fetch Wrapper Verfication',function(){
     });
   });
 
+  describe('Allow for JSON parse option', function(){
+    it('should retain string response if no json flag', function(done){
+      fetchMock.get('*', "{\"x\": 3}");
+      Flybits.util.Api.fetch('/test/').then(function(e){
+        e.should.be.a.String();
+        done();
+      }).catch(function(e){
+        done(e);
+      });
+      fetchMock.restore();
+    });
+    
+    it('should resolve with Object response if json flag', function(done){
+      fetchMock.get('*', "{\"x\": 3}");
+      Flybits.util.Api.fetch('/test/',{
+        respType: 'json'
+      }).then(function(e){
+        e.should.be.an.Object();
+        done();
+      }).catch(function(e){
+        done(e);
+      });
+      fetchMock.restore();
+    });
+  });
+
+    
 });
