@@ -22,7 +22,7 @@ var sdkStub = {
   }
 };
 
-describe('Analytics Manager Collection', function(){
+describe('Analytics Manager Reporting', function(){
   before(function(){
     mockery.enable({
       useCleanCache: true,
