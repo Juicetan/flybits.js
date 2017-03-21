@@ -103,8 +103,12 @@ context.Location = (function(){
    */
   Location._toServerFormat = Location.prototype._toServerFormat = function(contextValue){
     return {
-      lat: contextValue.coords.latitude,
-      lng: contextValue.coords.longitude
+      coordinates: {
+        value:{
+          lat: contextValue.coords.latitude,
+          lng: contextValue.coords.longitude
+        }
+      }
     };
   };
 

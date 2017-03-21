@@ -92,7 +92,9 @@ context.Connectivity = (function(){
    */
   Connectivity._toServerFormat = Connectivity.prototype._toServerFormat = function(contextValue){
     return {
-      connectionType: contextValue.state
+      isConnected: {
+        value: contextValue.state
+      }
     };
   };
 
@@ -104,8 +106,8 @@ context.Connectivity = (function(){
    * @property {number} CONNECTED Indicates the state of being connected.
    */
   Connectivity.state = Connectivity.prototype.state = {};
-  Connectivity.state.DISCONNECTED = Connectivity.prototype.state.DISCONNECTED = -1;
-  Connectivity.state.CONNECTED = Connectivity.prototype.state.CONNECTED = -99;
+  Connectivity.state.DISCONNECTED = Connectivity.prototype.state.DISCONNECTED = false;
+  Connectivity.state.CONNECTED = Connectivity.prototype.state.CONNECTED = true;
 
   /**
    * @memberof Flybits.context.Connectivity
