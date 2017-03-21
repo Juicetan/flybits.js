@@ -11,6 +11,7 @@
     "browser-sync": "^2.13.0",
     "chai": "^3.5.0",
     "event-stream": "^3.3.2",
+    "fetch-mock": "^5.9.4",
     "git-rev": "^0.2.1",
     "gulp": "^3.9.1",
     "gulp-clean": "^0.3.1",
